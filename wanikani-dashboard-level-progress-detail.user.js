@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.0.0
+// @version      1.0.1
 // @description  Show detailed progress bars.
 // @author       UInt2048
-// @include      https://www.wanikani.com/
-// @include      https://www.wanikani.com/dashboard
-// @include      https://www.wanikani.com/review
+// @include      *.wanikani.com/
+// @include      *.wanikani.com/dashboard
 // @run-at       document-end
 // @grant        none
 // @namespace https://greasyfork.org/users/149329
@@ -30,8 +29,10 @@
     const usePassed = progressHidden % 2 == 0;
     const requireLearned = true;
     const percentageRequired = progressHidden < 3 ? 90 : 100;
+    const hideCurrentLevelItems = window.wkof.settings.level_progress_detail.hide_current_level;
 
-    $('.dashboard-progress').empty();
+    $(".progress-component").children().slice(0, -2).remove();
+    if (hideCurrentLevelItems) { $(".progress-component").empty(); }
 
     //console.log(json);
     var progresses = [];
@@ -53,7 +54,7 @@
     json.progresses = progresses.concat(json.progresses);
 
     const showHalfwayMarker = true;
-    const borderRadius = "10px";
+    const borderRadius = window.wkof.settings.level_progress_detail.border_radius+"px";
     const guruOpacity = 0.5;
     const guruGradient = "linear-gradient(to bottom, #a0f, #9300dd)";
     const initialApprenticeOpacity = 0.5;
@@ -61,6 +62,7 @@
     const apprenticeGradient = "linear-gradient(to bottom, #f0a, #dd0093)";
 
     var stageNames = ['', 'Apprentice I', 'Apprentice II', 'Apprentice III', 'Apprentice IV'];
+    var runningHTML = "";
     json.progresses.forEach(function(progress, j) {
       var html =
         '<div id="progress-' + progress.level + '-' + progress.type + '" class="vocab-progress">' +
@@ -116,14 +118,18 @@
         //html += '<hr class="custom-splitter"/>';
       }
 
-      $('.dashboard-progress').append(html);
+      runningHTML += html;
     });
+    $('.dashboard-progress').prepend(runningHTML);
+    console.log("Appended");
   }
 
   function prepareForRender() {
   var cached_json = localStorage.getItem('level-progress-cache');
+  var didRender = false;
   if (cached_json) {
     render(JSON.parse(cached_json));
+    didRender = true;
   }
 
   window.wkof.ready('ItemData, Apiv2').then(() => {
@@ -169,7 +175,7 @@
           progresses: collection
         };
         localStorage.setItem('level-progress-cache', JSON.stringify(json));
-        render(json);
+        if (!didRender) { render(json); }
       }); // assignments
     }); // level progressions
   }); // Item Data, APIv2
@@ -181,7 +187,9 @@
     function load_settings() {
         var defaults = {
             progress_hidden: '2',
-            unconditional_progressions: 3
+            unconditional_progressions: 3,
+            border_radius: 10,
+            hide_current_level: false
         };
         return window.wkof.Settings.load('level_progress_detail', defaults);
     }
@@ -222,7 +230,20 @@
 			            hover_tip: 'For example, 3 will always show current level radical, kanji, and vocab progressions',
                         min: 0,
 			            default: 3
-			        }
+			        },
+                    border_radius: {
+                        type: 'number',
+                        label: 'Roundedness of progression (in pixels)',
+			            hover_tip: 'Choose zero for no roundedness, and 10 for maximum roundedness.',
+                        min: 0,
+			            default: 10
+			        },
+                    hide_current_level: {
+                        type: 'checkbox',
+                        label: 'Hide current level items',
+			            hover_tip: 'Check this box to hide the list of radicals and kanji.',
+			            default: false
+			        },
                 }
         }
         var dialog = new wkof.Settings(config);
