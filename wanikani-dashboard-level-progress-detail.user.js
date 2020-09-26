@@ -1,10 +1,9 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.0.1
+// @version      1.0.2
 // @description  Show detailed progress bars.
 // @author       UInt2048
-// @include      *.wanikani.com/
-// @include      *.wanikani.com/dashboard
+// @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
 // @run-at       document-end
 // @grant        none
 // @namespace https://greasyfork.org/users/149329
@@ -15,7 +14,7 @@
   'use strict';
 
   if (!window.wkof) {
-    alert('SRS Grid requires Wanikani Open Framework.\nYou will now be forwarded to installation instructions.');
+    alert('WK Dashboard Level Progress Detail requires Wanikani Open Framework.\nYou will now be forwarded to installation instructions.');
     window.location.href = 'https://community.wanikani.com/t/instructions-installing-wanikani-open-framework/28549';
     return;
   }
@@ -24,23 +23,19 @@
   var locked_data_url = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEX////p6emlmyooAAAAAnRSTlMAgJsrThgAAAA1SURBVDjLY3huea54DpQ4wIBgnyuewDAHSdKAAUnhuQIGJIVzHjCMmjJqyqgpo6aMmkKkKQC2XQWeSEU1BQAAAABJRU5ErkJggg==')";
 
   function render(json) {
-    const unconditionalLength = window.wkof.settings.level_progress_detail.unconditional_progressions;
-    const progressHidden = window.wkof.settings.level_progress_detail.progress_hidden;
-    const usePassed = progressHidden % 2 == 0;
-    const requireLearned = true;
-    const percentageRequired = progressHidden < 3 ? 90 : 100;
-    const hideCurrentLevelItems = window.wkof.settings.level_progress_detail.hide_current_level;
+    const settings = window.wkof.settings.level_progress_detail;
+    const usePassed = settings.progress_hidden % 2 == 0;
+    const percentageRequired = settings.progress_hidden < 3 ? 90 : 100;
 
-    $(".progress-component").children().slice(0, -2).remove();
-    if (hideCurrentLevelItems) { $(".progress-component").empty(); }
+    window.$(".progress-component").children().slice(0, -2).remove();
+    if (settings.hide_current_level) { window.$(".progress-component").empty(); }
 
-    //console.log(json);
     var progresses = [];
-    while (json.progresses.length > unconditionalLength) {
+    while (json.progresses.length > settings.unconditional_progressions) {
       var progress = json.progresses[0];
       var total_learned = progress.srs_level_totals.slice(1, 10).reduce((a, b) => a + b, 0); // 0 of the srs_level_totals is unlearned, so it's sliced out
 
-      var learnedRequired = requireLearned ? progress.max : 0;
+      var learnedRequired = settings.require_learned ? progress.max : 0;
       var percentageTotal = usePassed ? progress.passed_total : progress.gurued_total;
 
       if ((percentageTotal * 100.0 / progress.max >= percentageRequired && total_learned >= learnedRequired) || progress.max === 0) {
@@ -53,8 +48,6 @@
 
     json.progresses = progresses.concat(json.progresses);
 
-    const showHalfwayMarker = true;
-    const borderRadius = window.wkof.settings.level_progress_detail.border_radius+"px";
     const guruOpacity = 0.5;
     const guruGradient = "linear-gradient(to bottom, #a0f, #9300dd)";
     const initialApprenticeOpacity = 0.5;
@@ -72,23 +65,21 @@
           '<div class="threshold" style="width: ' + Math.ceil(progress.max * 0.9) * 100 / progress.max + '% !important;height:100% !important;position:absolute !important;padding-right:0.5em !important;color:#a6a6a6 !important;font-family:Helvetica, Arial, sans-serif;text-align:right;border-right:1px solid rgba(0,0,0,0.1);-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)"><div style="position:absolute;bottom:0;right:0;">' +
           Math.ceil(progress.max * 0.9) +
           '&nbsp</div></div>') + // 90% marker
-        (progress.max < 2 || !showHalfwayMarker ? "" :
+        (progress.max < 2 || !settings.show_halfway_marker ? "" :
           '<div class="threshold" style="width: ' + Math.ceil(progress.max * 0.5) * 100 / progress.max + '% !important;height:100% !important;position:absolute !important;padding-right:0.5em !important;color:#a6a6a6 !important;font-family:Helvetica, Arial, sans-serif;text-align:right;border-right:1px solid rgba(0,0,0,0.1);-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)"><div style="position:absolute;bottom:0;right:0;">' +
           Math.ceil(progress.max * 0.5) +
           '&nbsp</div></div>') + // 50% marker
 
-        '    <div class="progress" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max + ')" style="border-radius:' + borderRadius + ' !important;">' +
-        '      <div class="bar" title="Guru+ (' + progress.gurued_total + '/' + progress.max + ')"  style="float: left !important; opacity: ' + 100 * guruOpacity + '% !important; background-color: #a100f1 !important; background-image: ' + guruGradient + ' !important; width: ' + (progress.gurued_total * 100.0 / progress.max) + '% !important; height: 100% !important; margin:0px !important; border-radius:' + borderRadius + ' !important;">' +
+        '    <div class="progress" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max + ')" style="border-radius:' + settings.border_radius + 'px !important;">' +
+        '      <div class="bar" title="Guru+ (' + progress.gurued_total + '/' + progress.max + ')"  style="float: left !important; opacity: ' + 100 * guruOpacity + '% !important; background-color: #a100f1 !important; background-image: ' + guruGradient + ' !important; width: ' + (progress.gurued_total * 100.0 / progress.max) + '% !important; height: 100% !important; margin:0px !important; border-radius:' + settings.border_radius + 'px !important;">' +
         '        <span class="dark" style="display: none;">&nbsp;</span>' +
         '      </div>';
 
       var opacity = initialApprenticeOpacity;
       for (var i = 4; i >= 1; i--) {
         var percentage = progress.srs_level_totals[i] * 100.0 / progress.max;
-        //console.log(cssClass, i, progress.srs_level_totals[i], progress.max, percentage);
-
         html +=
-          '      <div class="bar bar-supplemental"  title="' + stageNames[i] + ' (' + progress.srs_level_totals[i] + '/' + progress.max + ')" style="float: left !important; opacity: ' + opacity + ' !important; background-color: #a100f1 !important; background-image: ' + apprenticeGradient + ' !important; width: ' + (percentage) + '% !important; height: 100% !important; margin:0px !important; border-radius:' + borderRadius + ' !important;">' +
+          '      <div class="bar bar-supplemental"  title="' + stageNames[i] + ' (' + progress.srs_level_totals[i] + '/' + progress.max + ')" style="float: left !important; opacity: ' + opacity + ' !important; background-color: #a100f1 !important; background-image: ' + apprenticeGradient + ' !important; width: ' + (percentage) + '% !important; height: 100% !important; margin:0px !important; border-radius:' + settings.border_radius + 'px !important;">' +
           '        <span class="dark" style="display: none;"></span>' +
           '      </div>';
 
@@ -104,7 +95,7 @@
       var lockedWidth = lockedCount * 100.0 / progress.max;
 
       html +=
-        '      <div class="bar bar-supplemental" title="Locked (' + lockedCount + '/' + progress.max + ')" style="float:left !important; background-color: #a8a8a8 !important; background-image: ' + locked_data_url + ' !important; width: ' + lockedWidth + '% !important; height: 100% !important; margin:0px !important; margin-left: ' + notStartedWidth + '% !important; border-radius:' + borderRadius + ' !important;">' +
+        '      <div class="bar bar-supplemental" title="Locked (' + lockedCount + '/' + progress.max + ')" style="float:left !important; background-color: #a8a8a8 !important; background-image: ' + locked_data_url + ' !important; width: ' + lockedWidth + '% !important; height: 100% !important; margin:0px !important; margin-left: ' + notStartedWidth + '% !important; border-radius:' + settings.border_radius + 'px !important;">' +
         '        <span class="dark" style="display: none;"></span>' +
         '      </div>';
 
@@ -120,8 +111,7 @@
 
       runningHTML += html;
     });
-    $('.dashboard-progress').prepend(runningHTML);
-    console.log("Appended");
+    window.$('.progress-component').prepend(runningHTML);
   }
 
   function prepareForRender() {
@@ -189,7 +179,9 @@
             progress_hidden: '2',
             unconditional_progressions: 3,
             border_radius: 10,
-            hide_current_level: false
+            hide_current_level: false,
+            require_learned: true,
+            show_halfway_marker: true,
         };
         return window.wkof.Settings.load('level_progress_detail', defaults);
     }
@@ -210,7 +202,6 @@
         var config = {
             script_id: 'level_progress_detail',
                 title: 'Dashboard Level Progress Detail',
-                //on_save: prepareForRender,
                 content: {
                     progress_hidden: {
                         type: 'dropdown',
@@ -226,7 +217,7 @@
                     },
                     unconditional_progressions: {
                         type: 'number',
-                        label: 'Progressions shown regardless of condition',
+                        label: 'Progressions shown unconditionally',
 			            hover_tip: 'For example, 3 will always show current level radical, kanji, and vocab progressions',
                         min: 0,
 			            default: 3
@@ -244,9 +235,21 @@
 			            hover_tip: 'Check this box to hide the list of radicals and kanji.',
 			            default: false
 			        },
+                    require_learned: {
+                        type: 'checkbox',
+                        label: 'Require all items to be learned to hide',
+			            hover_tip: 'Check this box to require every item to have completed its lesson in a category before hiding it.',
+			            default: true
+			        },
+                    show_halfway_marker: {
+                        type: 'checkbox',
+                        label: 'Show halfway marker',
+			            hover_tip: 'Show 50% marker in addition to 90% marker.',
+			            default: true
+			        },
                 }
         }
-        var dialog = new wkof.Settings(config);
+        var dialog = new window.wkof.Settings(config);
         dialog.open();
     }
 })();
