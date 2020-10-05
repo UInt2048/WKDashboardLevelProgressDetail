@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.0.2
+// @version      1.0.3
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -165,7 +165,7 @@
           progresses: collection
         };
         localStorage.setItem('level-progress-cache', JSON.stringify(json));
-        if (!didRender) { render(json); }
+        if (cached_json != json) { render(json); }
       }); // assignments
     }); // level progressions
   }); // Item Data, APIv2
