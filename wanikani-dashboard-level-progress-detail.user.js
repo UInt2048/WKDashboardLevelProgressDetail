@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.0.3
+// @version      1.0.4
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -128,7 +128,7 @@
       for (var id in levels) {
         level_list.push(levels[id]);
       }
-      var top_level = level_list.find(l => l.data.abandoned_at == null && l.data.passed_at == null && l.data.unlocked_at != null).data.level;
+      var top_level = level_list.find(l => l.data.abandoned_at == null && l.data.passed_at == null && l.data.unlocked_at != null).data.level || level_list.slice(-1)[0];
       window.wkof.ItemData.get_items('assignments').then(items => {
         var collection = [];
         items.forEach(item => {
