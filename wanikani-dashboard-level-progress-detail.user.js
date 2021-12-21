@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.1.1
+// @version      1.1.2
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -27,25 +27,6 @@
         const usePassed = settings.progress_hidden % 2 == 0;
         const percentageRequired = settings.progress_hidden < 3 ? 90 : 100;
 
-        window.$(".progress-component").children().slice(0, -2).remove();
-        if (settings.hide_current_level) { window.$(".progress-component").empty(); }
-
-        var progresses = [];
-        while (json.progresses.length > settings.unconditional_progressions) {
-            var progress = json.progresses[0];
-            var total_learned = progress.srs_level_totals.slice(1, 10).reduce((a, b) => a + b, 0); // 0 of the srs_level_totals is unlearned, so it's sliced out
-
-            var learnedRequired = settings.require_learned ? progress.max : 0;
-            var percentageTotal = usePassed ? progress.passed_total : total_learned;
-
-            if (!(percentageTotal * 100.0 / progress.max >= percentageRequired && total_learned >= learnedRequired) && progress.max !== 0) {
-                progresses.push(progress);
-            }
-            json.progresses = json.progresses.slice(1);
-        }
-
-        json.progresses = progresses.concat(json.progresses);
-
         const burnedOpacity = 1;
         const enlightenedOpacity = 1;
         const masterOpacity = 0.9;
@@ -54,15 +35,44 @@
         const initialApprenticeOpacity = 1;
         const apprenticeOpacityChange = settings.opacity_multiplier_apprentice;
 
-        function getGradient(stage) {
-            if (stage >= 9) return "linear-gradient(to bottom, " + settings.colorcode_burned + ", #222)";
-            else if (stage >= 8) return "linear-gradient(to bottom, " + settings.colorcode_enlightened + ", #222)";
-            else if (stage >= 7) return "linear-gradient(to bottom, " + settings.colorcode_master + ", #222)";
-            else if (stage >= 5) return "linear-gradient(to bottom, " + settings.colorcode_guru + ", #222)";
-            else if (stage >= 1) return "linear-gradient(to bottom, " + settings.colorcode_apprentice + ", #222)";
+        const burnStage = 9;
+        const enlightenedStage = 8;
+        const masterStage = 7;
+        const guruStage = 5;
+        const apprenticeStage = 1;
+        const stageNames = ['', 'Apprentice I', 'Apprentice II', 'Apprentice III', 'Apprentice IV', 'Guru I', 'Guru II', 'Master', 'Enlightened', 'Burned'];
+
+        function getColorCode(stage) {
+            if (stage >= burnStage) return settings.colorcode_burned;
+            else if (stage >= enlightenedStage) return settings.colorcode_enlightened;
+            else if (stage >= masterStage) return settings.colorcode_master;
+            else if (stage >= guruStage) return settings.colorcode_guru;
+            else if (stage >= apprenticeStage) return settings.colorcode_apprentice;
         }
 
-        const stageNames = ['', 'Apprentice I', 'Apprentice II', 'Apprentice III', 'Apprentice IV', 'Guru I', 'Guru II', 'Master', 'Enlightened', 'Burned'];
+        function totalAtLeast(progress, stage) {
+            return progress.srs_level_totals.slice(stage).reduce((a, b) => a + b, 0);
+        }
+
+        window.$(".progress-component").children().slice(0, -2).remove();
+        if (settings.hide_current_level) { window.$(".progress-component").empty(); }
+
+        var progresses = [];
+        while (json.progresses.length > settings.unconditional_progressions) {
+            var progress = json.progresses[0];
+            var total_learned = totalAtLeast(progress, apprenticeStage);
+            var gurued_plus_total = totalAtLeast(progress, guruStage);
+
+            var learnedRequired = settings.require_learned ? progress.max : 0;
+            var percentageTotal = usePassed ? progress.passed_total : gurued_plus_total;
+
+            if (!(percentageTotal * 100.0 / progress.max >= percentageRequired && total_learned >= learnedRequired) && progress.max !== 0) {
+                progresses.push(progress);
+            }
+            json.progresses = json.progresses.slice(1);
+        }
+
+        json.progresses = progresses.concat(json.progresses);
 
         var runningHTML = "";
         json.progresses.forEach(function(progress, j) {
@@ -79,31 +89,27 @@
                  Math.ceil(progress.max * 0.5) +
                  '&nbsp</div></div>'); // 50% marker
 
-            let opacity = burnedOpacity;
-            let gurued_plus_total = progress.srs_level_totals.slice(5).reduce((sum, val) => sum + val, 0);
+            let opacity = settings.distinguish_beyond_guru ? burnedOpacity : initialGuruOpacity;
+            let gurued_plus_total = totalAtLeast(progress, guruStage);
 
             html += '    <div class="progress" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max + ')" style="border-radius:' + settings.border_radius + 'px !important;">';
-            for (let i = stageNames.length - 1; i >= 1; i--) {
-                if (!settings.distinguish_beyond_guru && i > 5) {
-                    i = 5;
-                    opacity = initialGuruOpacity;
-                }
-
-                let name = (!settings.distinguish_beyond_guru && i == 5) ? "Guru+" : stageNames[i];
-                let total = (!settings.distinguish_beyond_guru && i == 5) ? gurued_plus_total : progress.srs_level_totals[i];
+            for (let i = settings.distinguish_beyond_guru ? stageNames.length - 1 : guruStage; i >= apprenticeStage; i--) {
+                let name = (!settings.distinguish_beyond_guru && i == guruStage) ? "Guru+" : stageNames[i];
+                let total = (!settings.distinguish_beyond_guru && i == guruStage) ? gurued_plus_total : progress.srs_level_totals[i];
                 let percentage = total * 100.0 / progress.max;
-                let gradient = getGradient(i);
+                let gradient = "linear-gradient(to bottom, " + getColorCode(i) + ", #222)";
 
                 html +=
                     '      <div class="bar bar-supplemental"  title="' + name + ' (' + total + '/' + progress.max + ')" style="float: left !important; opacity: ' + opacity + ' !important; background-color: #a100f1 !important; background-image: ' + gradient + ' !important; width: ' + (percentage) + '% !important; height: 100% !important; margin:0px !important; border-radius:' + settings.border_radius + 'px !important;">' +
                     '        <span class="dark" style="display: none;"></span>' +
                     '      </div>';
 
-                if (i == 9) opacity = enlightenedOpacity;
-                else if (i == 8) opacity = masterOpacity;
-                else if (i == 7) opacity = initialGuruOpacity;
-                else if (i == 5) opacity = initialApprenticeOpacity;
-                else opacity *= i >= 5 ? guruOpacityChange : apprenticeOpacityChange;
+                if (i == burnStage) opacity = enlightenedOpacity;
+                else if (i == enlightenedStage) opacity = masterOpacity;
+                else if (i == masterStage) opacity = initialGuruOpacity;
+                else if (i > guruStage) opacity *= guruOpacityChange;
+                else if (i == guruStage) opacity = initialApprenticeOpacity;
+                else opacity *= apprenticeOpacityChange;
             }
 
             var unlockedCount = 0;
