@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.1.0
+// @version      1.1.1
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -36,11 +36,9 @@
             var total_learned = progress.srs_level_totals.slice(1, 10).reduce((a, b) => a + b, 0); // 0 of the srs_level_totals is unlearned, so it's sliced out
 
             var learnedRequired = settings.require_learned ? progress.max : 0;
-            var percentageTotal = usePassed ? progress.passed_total : (progress.burned_total + progress.mastered_total + progress.enlightened_total + progress.gurued_total);
+            var percentageTotal = usePassed ? progress.passed_total : total_learned;
 
-            if ((percentageTotal * 100.0 / progress.max >= percentageRequired && total_learned >= learnedRequired) || progress.max === 0) {
-                // Skip over it
-            } else {
+            if (!(percentageTotal * 100.0 / progress.max >= percentageRequired && total_learned >= learnedRequired) && progress.max !== 0) {
                 progresses.push(progress);
             }
             json.progresses = json.progresses.slice(1);
@@ -127,10 +125,6 @@
                 '  </div>' +
                 '</div>';
 
-            if (j != json.progresses.length - 1) {
-                //html += '<hr class="custom-splitter"/>';
-            }
-
             runningHTML += html;
         });
         window.$('.progress-component').prepend(runningHTML);
@@ -160,10 +154,6 @@
                                 level: item.data.level,
                                 type: item.object,
                                 srs_level_totals: Array(10).fill(0),
-                                gurued_total: 0,
-                                mastered_total: 0,
-                                enlightened_total: 0,
-                                burned_total: 0,
                                 passed_total: 0,
                                 max: 0
                             };
@@ -171,18 +161,6 @@
                         }
                         if (item.assignments != undefined && item.assignments.unlocked_at != null) {
                             prog.srs_level_totals[item.assignments.srs_stage]++;
-                            if (item.assignments.srs_stage >= 5 && item.assignments.srs_stage < 7) {
-                                prog.gurued_total++;
-                            }
-                            else if (item.assignments.srs_stage == 7) {
-                                prog.mastered_total++;
-                            }
-                            else if (item.assignments.srs_state == 8) {
-                                prog.enlightened_total++;
-                            }
-                            else if (item.assignments.srs_state == 9) {
-                                prog.burned_total++;
-                            }
                             if (item.assignments.passed_at != null) {
                                 prog.passed_total++;
                             }
@@ -190,7 +168,7 @@
                         prog.max++;
                     });
                     collection = collection.filter(p => {
-                        return p.level <= top_level //p.level == top_level || ( p.srs_level_totals[0] != p.max && p.gurued_total != p.max && p.level <= top_level );
+                        return p.level <= top_level
                     }).sort((a, b) => {
                         var order = ['radical', 'kanji', 'vocabulary'];
                         return a.level - b.level + (order.indexOf(a.type) - order.indexOf(b.type)) / 10;
