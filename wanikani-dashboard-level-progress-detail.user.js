@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.1.2
+// @version      1.1.3
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -9,40 +9,61 @@
 // @namespace https://greasyfork.org/users/149329
 // @downloadURL none
 // ==/UserScript==
+/*eslint max-len: ["error", { "code": 120 }]*/
 
 (function() {
     'use strict';
 
     if (!window.wkof) {
-        alert('WK Dashboard Level Progress Detail requires Wanikani Open Framework.\nYou will now be forwarded to installation instructions.');
+        alert('WK Dashboard Level Progress Detail requires Wanikani Open Framework.\n' +
+              'You will now be forwarded to installation instructions.');
         window.location.href = 'https://community.wanikani.com/t/instructions-installing-wanikani-open-framework/28549';
         return;
     }
     window.wkof.include('ItemData, Apiv2, Menu, Settings');
 
-    var locked_data_url = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEX////p6emlmyooAAAAAnRSTlMAgJsrThgAAAA1SURBVDjLY3huea54DpQ4wIBgnyuewDAHSdKAAUnhuQIGJIVzHjCMmjJqyqgpo6aMmkKkKQC2XQWeSEU1BQAAAABJRU5ErkJggg==')";
+    var locked_data_url = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEX////"+
+        "p6emlmyooAAAAAnRSTlMAgJsrThgAAAA1SURBVDjLY3huea54DpQ4wIBgnyuewDAHSdKAAUnhuQIGJIVzHjCMmjJqyqgpo6aMmkKkKQC"+
+        "2XQWeSEU1BQAAAABJRU5ErkJggg==')";
 
     function render(json) {
-        const settings = window.wkof.settings.level_progress_detail;
-        const usePassed = settings.progress_hidden % 2 == 0;
-        const percentageRequired = settings.progress_hidden < 3 ? 90 : 100;
-
-        const burnedOpacity = 1;
-        const enlightenedOpacity = 1;
-        const masterOpacity = 0.9;
-        const initialGuruOpacity = 1;
-        const guruOpacityChange = settings.opacity_multiplier_guru;
-        const initialApprenticeOpacity = 1;
-        const apprenticeOpacityChange = settings.opacity_multiplier_apprentice;
-
         const burnStage = 9;
         const enlightenedStage = 8;
         const masterStage = 7;
         const guruStage = 5;
         const apprenticeStage = 1;
-        const stageNames = ['', 'Apprentice I', 'Apprentice II', 'Apprentice III', 'Apprentice IV', 'Guru I', 'Guru II', 'Master', 'Enlightened', 'Burned'];
+        const stageNames = ['', 'Apprentice I', 'Apprentice II', 'Apprentice III', 'Apprentice IV',
+                            'Guru I', 'Guru II', 'Master', 'Enlightened', 'Burned'];
 
-        function getColorCode(stage) {
+        function getDesiredLevel() {
+            switch (settings.progress_hidden) {
+                case '3':
+                case '4':
+                    return masterStage;
+                case '5':
+                case '6':
+                    return enlightenedStage;
+                case '7':
+                    return burnStage;
+                default:
+                    return guruStage;
+            }
+        }
+
+        const settings = window.wkof.settings.level_progress_detail;
+        const usePassed = settings.progress_hidden % 2 == 0;
+        const desiredLevel = getDesiredLevel();
+
+        const burnedOpacity = 0.01 * settings.opacity_burned;
+        const enlightenedOpacity = 0.01 * settings.opacity_enlightened;
+        const masterOpacity = 0.01 * settings.opacity_master;
+        const initialGuruOpacity = 0.01 * settings.opacity_guru;
+        const guruOpacityChange = 0.01 * settings.opacity_multiplier_guru;
+        const initialApprenticeOpacity = 0.01 * settings.opacity_apprentice;
+        const apprenticeOpacityChange = 0.01 * settings.opacity_multiplier_apprentice;
+        const markerThreshold = 0.97;
+
+        function getColorCode(stage, alpha) {
             if (stage >= burnStage) return settings.colorcode_burned;
             else if (stage >= enlightenedStage) return settings.colorcode_enlightened;
             else if (stage >= masterStage) return settings.colorcode_master;
@@ -61,12 +82,12 @@
         while (json.progresses.length > settings.unconditional_progressions) {
             var progress = json.progresses[0];
             var total_learned = totalAtLeast(progress, apprenticeStage);
-            var gurued_plus_total = totalAtLeast(progress, guruStage);
-
+            var desiredPlusTotal = totalAtLeast(progress, desiredLevel);
             var learnedRequired = settings.require_learned ? progress.max : 0;
-            var percentageTotal = usePassed ? progress.passed_total : gurued_plus_total;
+            var percentageTotal = usePassed ? progress.passed_total : desiredPlusTotal;
 
-            if (!(percentageTotal * 100.0 / progress.max >= percentageRequired && total_learned >= learnedRequired) && progress.max !== 0) {
+            if (!(percentageTotal * 100.0 / progress.max >= settings.progress_hidden_percentage &&
+                  total_learned >= learnedRequired) && progress.max !== 0) {
                 progresses.push(progress);
             }
             json.progresses = json.progresses.slice(1);
@@ -75,32 +96,64 @@
         json.progresses = progresses.concat(json.progresses);
 
         var runningHTML = "";
-        json.progresses.forEach(function(progress, j) {
+        json.progresses.forEach(function(progress) {
+            var user_specified_marker = 0.01 * settings.progress_hidden_percentage;
             var html =
                 '<div id="progress-' + progress.level + '-' + progress.type + '" class="vocab-progress">' +
-                '  <h3>Level ' + progress.level + ' ' + progress.type.charAt(0).toUpperCase() + progress.type.slice(1) + ' Progression</h3>' +
-                '<div class="chart" style="position:relative;">' +
-                (progress.max < 10 ? "" :
-                 '<div class="threshold" style="width: ' + Math.ceil(progress.max * 0.9) * 100 / progress.max + '% !important;height:100% !important;position:absolute !important;padding-right:0.5em !important;color:#a6a6a6 !important;font-family:Helvetica, Arial, sans-serif;text-align:right;border-right:1px solid rgba(0,0,0,0.1);-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)"><div style="position:absolute;bottom:0;right:0;">' +
+                '  <h3>Level ' + progress.level + ' ' + progress.type.charAt(0).toUpperCase() + progress.type.slice(1) +
+                ' Progression</h3><div class="chart" style="position:relative;">' +
+                (progress.max < 10 || Math.round(progress.max * user_specified_marker) == progress.max ? "" :
+                 '<div class="threshold" style="width: ' +
+                 Math.round(progress.max * user_specified_marker) * 100 / progress.max + '% !important;height:100% '+
+                 '!important;position:absolute !important;padding-right:0.5em !important;color:#a6a6a6 '+
+                 '!important;font-family:Helvetica, Arial, sans-serif;text-align:right;'+
+                 'border-right:1px solid rgba(0,0,0,0.1);-webkit-box-sizing:border-box;-moz-box-sizing:border-box;'+
+                 'box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;'+
+                 'box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)">'+
+                 '<div style="position:absolute;bottom:0;right:0;">' +
+                 (user_specified_marker <= markerThreshold ? Math.round(progress.max * user_specified_marker) : "") +
+                 '&nbsp</div></div>') + // user-specified % marker
+                (progress.max < 10 || progress.type != "kanji" || progress.passed_total >= Math.ceil(progress.max * 0.9)
+                 ? "" : '<div class="threshold" style="width: ' +
+                 Math.ceil(progress.max * 0.9) * 100 / progress.max + '% !important;height:100% '+
+                 '!important;position:absolute !important;padding-right:0.5em !important;color:rgb(0, 220, 0, 1) '+
+                 '!important;font-family:Helvetica, Arial, sans-serif;text-align:right;'+
+                 'border-right:1px solid rgba(0,220,0,1);-webkit-box-sizing:border-box;-moz-box-sizing:border-box;'+
+                 'box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;'+
+                 'box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)"><div style="font-weight:bold;'+
+                 'position:absolute;bottom:0;right:0;">' +
                  Math.ceil(progress.max * 0.9) +
-                 '&nbsp</div></div>') + // 90% marker
+                 '&nbsp</div></div>') + // current level kanji passing marker
                 (progress.max < 2 || !settings.show_halfway_marker ? "" :
-                 '<div class="threshold" style="width: ' + Math.ceil(progress.max * 0.5) * 100 / progress.max + '% !important;height:100% !important;position:absolute !important;padding-right:0.5em !important;color:#a6a6a6 !important;font-family:Helvetica, Arial, sans-serif;text-align:right;border-right:1px solid rgba(0,0,0,0.1);-webkit-box-sizing:border-box;-moz-box-sizing:border-box;box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)"><div style="position:absolute;bottom:0;right:0;">' +
+                 '<div class="threshold" style="width: ' + Math.ceil(progress.max * 0.5) * 100 / progress.max +
+                 '% !important;height:100% !important;position:absolute !important;padding-right:0.5em '+
+                 '!important;color:#a6a6a6 !important;font-family:Helvetica, Arial, sans-serif;text-align:right;'+
+                 'border-right:1px solid rgba(0,0,0,0.1);-webkit-box-sizing:border-box;-moz-box-sizing:border-box;'+
+                 'box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;'+
+                 'box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)">'+
+                 '<div style="position:absolute;bottom:0;right:0;">' +
                  Math.ceil(progress.max * 0.5) +
                  '&nbsp</div></div>'); // 50% marker
 
-            let opacity = settings.distinguish_beyond_guru ? burnedOpacity : initialGuruOpacity;
+            const beyondGuru = settings.distinguish_beyond_guru;
+            let opacity = beyondGuru ? burnedOpacity : initialGuruOpacity;
             let gurued_plus_total = totalAtLeast(progress, guruStage);
 
-            html += '    <div class="progress" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max + ')" style="border-radius:' + settings.border_radius + 'px !important;">';
-            for (let i = settings.distinguish_beyond_guru ? stageNames.length - 1 : guruStage; i >= apprenticeStage; i--) {
-                let name = (!settings.distinguish_beyond_guru && i == guruStage) ? "Guru+" : stageNames[i];
-                let total = (!settings.distinguish_beyond_guru && i == guruStage) ? gurued_plus_total : progress.srs_level_totals[i];
+            html += '    <div class="progress" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max +
+                ')" style="border-radius:' + settings.border_radius + 'px !important;">';
+            for (let i = beyondGuru ? stageNames.length - 1 : guruStage; i >= apprenticeStage; i--) {
+                let name = (!beyondGuru && i == guruStage) ? "Guru+" : stageNames[i];
+                let total = (!beyondGuru && i == guruStage) ? gurued_plus_total : progress.srs_level_totals[i];
                 let percentage = total * 100.0 / progress.max;
-                let gradient = "linear-gradient(to bottom, " + getColorCode(i) + ", #222)";
+                let gradient = "linear-gradient(to bottom, " + getColorCode(i) + ", " +
+                    (settings.shadow ? "#222" : getColorCode(i)) + ")";
 
                 html +=
-                    '      <div class="bar bar-supplemental"  title="' + name + ' (' + total + '/' + progress.max + ')" style="float: left !important; opacity: ' + opacity + ' !important; background-color: #a100f1 !important; background-image: ' + gradient + ' !important; width: ' + (percentage) + '% !important; height: 100% !important; margin:0px !important; border-radius:' + settings.border_radius + 'px !important;">' +
+                    '      <div class="bar bar-supplemental"  title="' + name + ' (' + total + '/' + progress.max +
+                    ')" style="float: left !important; opacity: ' + opacity + ' !important; background-color: #a100f1 '+
+                    '!important; background-image: ' + gradient + ' !important; width: ' + (percentage) +
+                    '% !important; height: 100% !important; margin:0px !important; border-radius:' +
+                    settings.border_radius + 'px !important;">' +
                     '        <span class="dark" style="display: none;"></span>' +
                     '      </div>';
 
@@ -121,7 +174,11 @@
             var lockedWidth = lockedCount * 100.0 / progress.max;
 
             html +=
-                '      <div class="bar bar-supplemental" title="Locked (' + lockedCount + '/' + progress.max + ')" style="float:left !important; background-color: #a8a8a8 !important; background-image: ' + locked_data_url + ' !important; width: ' + lockedWidth + '% !important; height: 100% !important; margin:0px !important; margin-left: ' + notStartedWidth + '% !important; border-radius:' + settings.border_radius + 'px !important;">' +
+                '      <div class="bar bar-supplemental" title="Locked (' + lockedCount + '/' + progress.max +
+                ')" style="float:left !important; background-color: #a8a8a8 !important; background-image: ' +
+                locked_data_url + ' !important; width: ' + lockedWidth + '% !important; height: 100% !important; '+
+                'margin:0px !important; margin-left: ' + notStartedWidth + '% !important; border-radius:' +
+                settings.border_radius + 'px !important;">' +
                 '        <span class="dark" style="display: none;"></span>' +
                 '      </div>';
 
@@ -138,11 +195,7 @@
 
     function prepareForRender() {
         var cached_json = localStorage.getItem('level-progress-cache');
-        var didRender = false;
-        if (cached_json) {
-            render(JSON.parse(cached_json));
-            didRender = true;
-        }
+        if (cached_json) render(JSON.parse(cached_json));
 
         window.wkof.ready('ItemData, Apiv2').then(() => {
             window.wkof.Apiv2.get_endpoint('level_progressions').then(levels => {
@@ -150,13 +203,15 @@
                 for (var id in levels) {
                     level_list.push(levels[id]);
                 }
-                var top_level = (level_list.find(l => l.data.abandoned_at == null && l.data.passed_at == null && l.data.unlocked_at != null) || level_list.slice(-1)[0]).data.level;
+                var top_level = (level_list.find(l => l.data.abandoned_at == null &&
+                                                 l.data.passed_at == null && l.data.unlocked_at != null) ||
+                                 level_list.slice(-1)[0]).data.level;
                 window.wkof.ItemData.get_items('assignments').then(items => {
                     var collection = [];
                     items.forEach(item => {
-                        prog = collection.find(p => p.level == item.data.level && p.type == item.object);
+                        var prog = collection.find(p => p.level == item.data.level && p.type == item.object);
                         if (prog == undefined) {
-                            var prog = {
+                            prog = {
                                 level: item.data.level,
                                 type: item.object,
                                 srs_level_totals: Array(10).fill(0),
@@ -194,20 +249,27 @@
     // Load settings and set defaults
     function load_settings() {
         var defaults = {
-            progress_hidden: '3',
+            progress_hidden: '2',
+            progress_hidden_percentage: 90,
             unconditional_progressions: 0,
             border_radius: 10,
             hide_current_level: true,
             require_learned: true,
             show_halfway_marker: true,
             distinguish_beyond_guru: false,
-            colorcode_apprentice: '#1cdc9a',
-            colorcode_guru: '#2ecc71',
-            colorcode_master: '#ffbf00',
-            colorcode_enlightened: '#f67400',
-            colorcode_burned: '#da4453',
-            opacity_multiplier_apprentice: '0.7',
-            opacity_multiplier_guru: '0.7'
+            colorcode_apprentice: '#f300a2',
+            colorcode_guru: '#9d34b7',
+            colorcode_master: '#4867e0',
+            colorcode_enlightened: '#00a5f7',
+            colorcode_burned: '#fbb41c',
+            opacity_apprentice: '100',
+            opacity_guru: '100',
+            opacity_master: '100',
+            opacity_enlightened: '100',
+            opacity_burned: '100',
+            shadow: false,
+            opacity_multiplier_apprentice: '70',
+            opacity_multiplier_guru: '70'
         };
         return window.wkof.Settings.load('level_progress_detail', defaults);
     }
@@ -224,7 +286,7 @@
     }
 
     // Create the options
-    function open_settings(items) {
+    function open_settings() {
         var config = {
             script_id: 'level_progress_detail',
             title: 'Dashboard Level Progress Detail',
@@ -237,16 +299,26 @@
                             hover_tip: 'Choose criteria for what progress to hide',
                             default: '2',
                             content: {
-                                1: '90+% guru or higher right now',
-                                2: '90+% passed (has been guru or higher at any point)',
-                                3: '100% guru or higher right now',
-                                4: '100% passed (has been guru or higher at any point)'
+                                1: 'Guru or higher right now',
+                                2: 'Has been guru or higher at any point',
+                                3: 'Master or higher right now',
+                                5: 'Enlightened or higher right now',
+                                7: 'Burnt right now'
                             }
+                        },
+                        progress_hidden_percentage: {
+                            type: 'number',
+                            label: 'Progress hidden percentage',
+                            hover_tip: 'Determines the percentage of progress necessary to hide',
+                            min: 0,
+                            max: 100,
+                            step: '1',
+                            default: '90'
                         },
                         unconditional_progressions: {
                             type: 'number',
                             label: 'Progressions shown unconditionally',
-                            hover_tip: 'For example, 3 will always show current level radical, kanji, and vocab progressions',
+                            hover_tip: 'For example, 3 always shows current level radical, kanji, & vocab progressions',
                             min: 0,
                             default: 3
                         },
@@ -260,13 +332,13 @@
                         hide_current_level: {
                             type: 'checkbox',
                             label: 'Hide current level items',
-                            hover_tip: 'Check this box to hide the list of radicals and kanji.',
+                            hover_tip: 'Check this to hide the list of radicals and kanji.',
                             default: false
                         },
                         require_learned: {
                             type: 'checkbox',
                             label: 'Require all items to be learned to hide',
-                            hover_tip: 'Check this box to require every item to have completed its lesson in a category before hiding it.',
+                            hover_tip: 'Check this to require all items of a progression to have completed lessons.',
                             default: true
                         },
                         show_halfway_marker: {
@@ -286,45 +358,100 @@
                             type: 'color',
                             label: 'Color Apprentice',
                             hover_tip: 'Color for your Apprentice Progression bar',
-                            default: '#1d99f3'
+                            default: '#f300a2'
                         },
                         colorcode_guru:{
                             type: 'color',
                             label: 'Color Guru',
                             hover_tip: 'Color for your Guru Progression bar',
-                            default: '#2ecc71'
+                            default: '#9d34b7'
                         },
                         colorcode_master:{
                             type: 'color',
                             label: 'Color Master',
                             hover_tip: 'Color for your Master Progression bar',
-                            default: '#ffbf00'
+                            default: '#4867e0'
                         },
                         colorcode_enlightened:{
                             type: 'color',
                             label: 'Color Enlightened',
                             hover_tip: 'Color for your Enlightend Progression Bar',
-                            default: '#f67400'
+                            default: '#00a5f7'
                         },
                         colorcode_burned:{
                             type: 'color',
                             label: 'Color Burned',
                             hover_tip: 'Color for your Burned Progression Bar',
-                            default: '#da4453'
+                            default: '#fbb41c'
+                        },
+                        opacity_apprentice:{
+                            type: 'number',
+                            label: 'Apprentice Opacity',
+                            hover_tip: 'Integer between 1 and 100 to determine opacity of highest Apprentice rank',
+                            min: 1,
+                            max: 100,
+                            step: '1',
+                            default: 70
+                        },
+                        opacity_guru:{
+                            type: 'number',
+                            label: 'Guru Opacity',
+                            hover_tip: 'Integer between 1 and 100 to determine opacity of highest Guru rank',
+                            min: 1,
+                            max: 100,
+                            step: '1',
+                            default: 70
+                        },
+                        opacity_master:{
+                            type: 'number',
+                            label: 'Master Opacity',
+                            hover_tip: 'Integer between 1 and 100 to determine opacity of Master rank',
+                            min: 1,
+                            max: 100,
+                            step: '1',
+                            default: 70
+                        },
+                        opacity_enlightened:{
+                            type: 'number',
+                            label: 'Enlightened Opacity',
+                            hover_tip: 'Integer between 1 and 100 to determine opacity of Enlightened rank',
+                            min: 1,
+                            max: 100,
+                            step: '1',
+                            default: 70
+                        },
+                        opacity_burned:{
+                            type: 'number',
+                            label: 'Burned Opacity',
+                            hover_tip: 'Integer between 1 and 100 to determine opacity of Burned rank',
+                            min: 1,
+                            max: 100,
+                            step: '1',
+                            default: 70
+                        },
+                        shadow:{
+                            type: 'checkbox',
+                            label: 'Shadow',
+                            hover_tip: 'Display shadow for each progress bar. Works best in dark mode.',
+                            default: false
                         },
                         opacity_multiplier_apprentice:{
-                            type: 'text',
-                            step: '0.01',
+                            type: 'number',
                             label: 'Fading multiplier Apprentice',
-                            hover_tip: 'Determines how quickly the color fades when the Apprentice rank decreases. Should be a number between 0.01 and 1',
-                            default: '0.7'
+                            hover_tip: 'Integer between 1 and 100 to determine speed of Apprentice rank color fade',
+                            min: 1,
+                            max: 100,
+                            step: '1',
+                            default: 70
                         },
                         opacity_multiplier_guru:{
-                            type: 'text',
-                            step: '0.01',
+                            type: 'number',
                             label: 'Fading multiplier Guru',
-                            hover_tip: 'Determines how quickly the color fades when the Guru rank decreases. Should be a number between 0.01 and 1',
-                            default: '0.7'
+                            hover_tip: 'Integer between 1 and 100 to determine speed of Guru rank color fade',
+                            min: 1,
+                            max: 100,
+                            step: '1',
+                            default: 70
                         }
                     }}
                 }
