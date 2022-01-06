@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.1.3
+// @version      1.1.4
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -69,6 +69,14 @@
             else if (stage >= masterStage) return settings.colorcode_master;
             else if (stage >= guruStage) return settings.colorcode_guru;
             else if (stage >= apprenticeStage) return settings.colorcode_apprentice;
+        }
+
+        function getGradient(stage, alpha) {
+            if(stage >= burnStage) return settings.gradient_burned;
+            else if (stage >= enlightenedStage) return settings.gradient_enlightened;
+            else if (stage >= masterStage) return settings.gradient_master;
+            else if(stage >= guruStage) return settings.gradient_guru;
+            else if(stage >= apprenticeStage) return settings.gradient_apprentice;
         }
 
         function totalAtLeast(progress, stage) {
@@ -146,7 +154,7 @@
                 let total = (!beyondGuru && i == guruStage) ? gurued_plus_total : progress.srs_level_totals[i];
                 let percentage = total * 100.0 / progress.max;
                 let gradient = "linear-gradient(to bottom, " + getColorCode(i) + ", " +
-                    (settings.shadow ? "#222" : getColorCode(i)) + ")";
+                    (settings.use_gradient ? getGradient(i) : getColorCode(i)) + ")";
 
                 html +=
                     '      <div class="bar bar-supplemental"  title="' + name + ' (' + total + '/' + progress.max +
@@ -267,9 +275,14 @@
             opacity_master: '100',
             opacity_enlightened: '100',
             opacity_burned: '100',
-            shadow: false,
             opacity_multiplier_apprentice: '70',
-            opacity_multiplier_guru: '70'
+            opacity_multiplier_guru: '70',
+            use_gradient: false,
+            gradient_apprentice: '#222222',
+            gradient_guru: '#222222',
+            gradient_master: '#222222',
+            gradient_enlightened: '#222222',
+            gradient_burned: '#222222'
         };
         return window.wkof.Settings.load('level_progress_detail', defaults);
     }
@@ -291,171 +304,213 @@
             script_id: 'level_progress_detail',
             title: 'Dashboard Level Progress Detail',
             content: {
-                tabs: {type:'tabset', content: {
-                    pgFilter: {type:'page', label:'Filters', content: {
-                        progress_hidden: {
-                            type: 'dropdown',
-                            label: 'Progress hidden criteria',
-                            hover_tip: 'Choose criteria for what progress to hide',
-                            default: '2',
-                            content: {
-                                1: 'Guru or higher right now',
-                                2: 'Has been guru or higher at any point',
-                                3: 'Master or higher right now',
-                                5: 'Enlightened or higher right now',
-                                7: 'Burnt right now'
+                tabs: {
+                    type: 'tabset', content: {
+                        pgFilter: {
+                            type: 'page', label: 'Filters', content: {
+                                progress_hidden: {
+                                    type: 'dropdown',
+                                    label: 'Progress hidden criteria',
+                                    hover_tip: 'Choose criteria for what progress to hide',
+                                    default: '2',
+                                    content: {
+                                        1: 'Guru or higher right now',
+                                        2: 'Has been guru or higher at any point',
+                                        3: 'Master or higher right now',
+                                        5: 'Enlightened or higher right now',
+                                        7: 'Burnt right now'
+                                    }
+                                },
+                                progress_hidden_percentage: {
+                                    type: 'number',
+                                    label: 'Progress hidden percentage',
+                                    hover_tip: 'Determines the percentage of progress necessary to hide',
+                                    min: 0,
+                                    max: 100,
+                                    step: '1',
+                                    default: '90'
+                                },
+                                unconditional_progressions: {
+                                    type: 'number',
+                                    label: 'Progressions shown unconditionally',
+                                    hover_tip: '3 always shows current level radical, kanji, & vocab progress',
+                                    min: 0,
+                                    default: 3
+                                },
+                                border_radius: {
+                                    type: 'number',
+                                    label: 'Roundedness of progression (in pixels)',
+                                    hover_tip: 'Choose zero for no roundedness, and 10 for maximum roundedness.',
+                                    min: 0,
+                                    default: 10
+                                },
+                                hide_current_level: {
+                                    type: 'checkbox',
+                                    label: 'Hide current level items',
+                                    hover_tip: 'Enable to hide the list of radicals and kanji.',
+                                    default: false
+                                },
+                                require_learned: {
+                                    type: 'checkbox',
+                                    label: 'Require all items to be learned to hide',
+                                    hover_tip: 'Enable to require all items of a progression to have lessons complete.',
+                                    default: true
+                                },
+                                show_halfway_marker: {
+                                    type: 'checkbox',
+                                    label: 'Show halfway marker',
+                                    hover_tip: 'Show 50% marker in addition to 90% marker.',
+                                    default: true
+                                },
+                                distinguish_beyond_guru: {
+                                    type: 'checkbox',
+                                    label: 'Distinguish beyond Guru',
+                                    hover_tip: 'Show different colored bars for Guru, Master, Enlightened and Burned',
+                                    default: false
+                                }
                             }
                         },
-                        progress_hidden_percentage: {
-                            type: 'number',
-                            label: 'Progress hidden percentage',
-                            hover_tip: 'Determines the percentage of progress necessary to hide',
-                            min: 0,
-                            max: 100,
-                            step: '1',
-                            default: '90'
+                        pgColor: {
+                            type: 'page', label: 'Colors', content: {
+                                colorcode_apprentice: {
+                                    type: 'color',
+                                    label: 'Color Apprentice',
+                                    hover_tip: 'Color for your Apprentice Progression bar',
+                                    default: '#f300a2'
+                                },
+                                colorcode_guru: {
+                                    type: 'color',
+                                    label: 'Color Guru',
+                                    hover_tip: 'Color for your Guru Progression bar',
+                                    default: '#9d34b7'
+                                },
+                                colorcode_master: {
+                                    type: 'color',
+                                    label: 'Color Master',
+                                    hover_tip: 'Color for your Master Progression bar',
+                                    default: '#4867e0'
+                                },
+                                colorcode_enlightened: {
+                                    type: 'color',
+                                    label: 'Color Enlightened',
+                                    hover_tip: 'Color for your Enlightend Progression Bar',
+                                    default: '#00a5f7'
+                                },
+                                colorcode_burned: {
+                                    type: 'color',
+                                    label: 'Color Burned',
+                                    hover_tip: 'Color for your Burned Progression Bar',
+                                    default: '#fbb41c'
+                                },
+                                opacity_apprentice: {
+                                    type: 'number',
+                                    label: 'Apprentice Opacity',
+                                    hover_tip: 'Integer between 1 and 100 to set opacity of highest Apprentice rank',
+                                    min: 1,
+                                    max: 100,
+                                    step: '1',
+                                    default: 70
+                                },
+                                opacity_guru: {
+                                    type: 'number',
+                                    label: 'Guru Opacity',
+                                    hover_tip: 'Integer between 1 and 100 to set opacity of highest Guru rank',
+                                    min: 1,
+                                    max: 100,
+                                    step: '1',
+                                    default: 70
+                                },
+                                opacity_master: {
+                                    type: 'number',
+                                    label: 'Master Opacity',
+                                    hover_tip: 'Integer between 1 and 100 to set opacity of Master rank',
+                                    min: 1,
+                                    max: 100,
+                                    step: '1',
+                                    default: 70
+                                },
+                                opacity_enlightened: {
+                                    type: 'number',
+                                    label: 'Enlightened Opacity',
+                                    hover_tip: 'Integer between 1 and 100 to set opacity of Enlightened rank',
+                                    min: 1,
+                                    max: 100,
+                                    step: '1',
+                                    default: 70
+                                },
+                                opacity_burned: {
+                                    type: 'number',
+                                    label: 'Burned Opacity',
+                                    hover_tip: 'Integer between 1 and 100 to set opacity of Burned rank',
+                                    min: 1,
+                                    max: 100,
+                                    step: '1',
+                                    default: 70
+                                },
+                                opacity_multiplier_apprentice: {
+                                    type: 'number',
+                                    label: 'Fading multiplier Apprentice',
+                                    hover_tip: 'Integer between 1 and 100 to set speed of Apprentice rank color fade',
+                                    min: 1,
+                                    max: 100,
+                                    step: '1',
+                                    default: 70
+                                },
+                                opacity_multiplier_guru: {
+                                    type: 'number',
+                                    label: 'Fading multiplier Guru',
+                                    hover_tip: 'Integer between 1 and 100 to set speed of Guru rank color fade',
+                                    min: 1,
+                                    max: 100,
+                                    step: '1',
+                                    default: 70
+                                }
+                            }
                         },
-                        unconditional_progressions: {
-                            type: 'number',
-                            label: 'Progressions shown unconditionally',
-                            hover_tip: 'For example, 3 always shows current level radical, kanji, & vocab progressions',
-                            min: 0,
-                            default: 3
-                        },
-                        border_radius: {
-                            type: 'number',
-                            label: 'Roundedness of progression (in pixels)',
-                            hover_tip: 'Choose zero for no roundedness, and 10 for maximum roundedness.',
-                            min: 0,
-                            default: 10
-                        },
-                        hide_current_level: {
-                            type: 'checkbox',
-                            label: 'Hide current level items',
-                            hover_tip: 'Check this to hide the list of radicals and kanji.',
-                            default: false
-                        },
-                        require_learned: {
-                            type: 'checkbox',
-                            label: 'Require all items to be learned to hide',
-                            hover_tip: 'Check this to require all items of a progression to have completed lessons.',
-                            default: true
-                        },
-                        show_halfway_marker: {
-                            type: 'checkbox',
-                            label: 'Show halfway marker',
-                            hover_tip: 'Show 50% marker in addition to 90% marker.',
-                            default: true
-                        },
-                        distinguish_beyond_guru: {
-                            type: 'checkbox',
-                            label: 'Distinguish beyond Guru',
-                            hover_tip: 'Show different colored bars for Guru, Master, Enlightened and Burned',
-                            default: false
-                        }}},
-                    pgColor: {type:'page', label:'Colors', content: {
-                        colorcode_apprentice:{
-                            type: 'color',
-                            label: 'Color Apprentice',
-                            hover_tip: 'Color for your Apprentice Progression bar',
-                            default: '#f300a2'
-                        },
-                        colorcode_guru:{
-                            type: 'color',
-                            label: 'Color Guru',
-                            hover_tip: 'Color for your Guru Progression bar',
-                            default: '#9d34b7'
-                        },
-                        colorcode_master:{
-                            type: 'color',
-                            label: 'Color Master',
-                            hover_tip: 'Color for your Master Progression bar',
-                            default: '#4867e0'
-                        },
-                        colorcode_enlightened:{
-                            type: 'color',
-                            label: 'Color Enlightened',
-                            hover_tip: 'Color for your Enlightend Progression Bar',
-                            default: '#00a5f7'
-                        },
-                        colorcode_burned:{
-                            type: 'color',
-                            label: 'Color Burned',
-                            hover_tip: 'Color for your Burned Progression Bar',
-                            default: '#fbb41c'
-                        },
-                        opacity_apprentice:{
-                            type: 'number',
-                            label: 'Apprentice Opacity',
-                            hover_tip: 'Integer between 1 and 100 to determine opacity of highest Apprentice rank',
-                            min: 1,
-                            max: 100,
-                            step: '1',
-                            default: 70
-                        },
-                        opacity_guru:{
-                            type: 'number',
-                            label: 'Guru Opacity',
-                            hover_tip: 'Integer between 1 and 100 to determine opacity of highest Guru rank',
-                            min: 1,
-                            max: 100,
-                            step: '1',
-                            default: 70
-                        },
-                        opacity_master:{
-                            type: 'number',
-                            label: 'Master Opacity',
-                            hover_tip: 'Integer between 1 and 100 to determine opacity of Master rank',
-                            min: 1,
-                            max: 100,
-                            step: '1',
-                            default: 70
-                        },
-                        opacity_enlightened:{
-                            type: 'number',
-                            label: 'Enlightened Opacity',
-                            hover_tip: 'Integer between 1 and 100 to determine opacity of Enlightened rank',
-                            min: 1,
-                            max: 100,
-                            step: '1',
-                            default: 70
-                        },
-                        opacity_burned:{
-                            type: 'number',
-                            label: 'Burned Opacity',
-                            hover_tip: 'Integer between 1 and 100 to determine opacity of Burned rank',
-                            min: 1,
-                            max: 100,
-                            step: '1',
-                            default: 70
-                        },
-                        shadow:{
-                            type: 'checkbox',
-                            label: 'Shadow',
-                            hover_tip: 'Display shadow for each progress bar. Works best in dark mode.',
-                            default: false
-                        },
-                        opacity_multiplier_apprentice:{
-                            type: 'number',
-                            label: 'Fading multiplier Apprentice',
-                            hover_tip: 'Integer between 1 and 100 to determine speed of Apprentice rank color fade',
-                            min: 1,
-                            max: 100,
-                            step: '1',
-                            default: 70
-                        },
-                        opacity_multiplier_guru:{
-                            type: 'number',
-                            label: 'Fading multiplier Guru',
-                            hover_tip: 'Integer between 1 and 100 to determine speed of Guru rank color fade',
-                            min: 1,
-                            max: 100,
-                            step: '1',
-                            default: 70
+                        pgGradient: {
+                            type: 'page', label: 'Gradients', content: {
+
+                                use_gradient: {
+                                    type: 'checkbox',
+                                    label: 'Use Gradient',
+                                    hover_tip: 'If enabled, bars use a gradient: main on top, gradient color on bottom',
+                                    default: false
+                                },
+                                gradient_apprentice: {
+                                    type: 'color',
+                                    label: 'Bottom color Apprentice',
+                                    hover_tip: 'Bottom color for Apprentice Progress bar if "Use Gradient" is active',
+                                    default: '#222222'
+                                },
+                                gradient_guru: {
+                                    type: 'color',
+                                    label: 'Bottom color Guru',
+                                    hover_tip: 'Bottom color for Guru Progress bar if "Use Gradient" is active',
+                                    default: '#222222'
+                                },
+                                gradient_master: {
+                                    type: 'color',
+                                    label: 'Bottom color Master',
+                                    hover_tip: 'Bottom color for Master Progress bar if "Use Gradient" is active',
+                                    default: '#222222'
+                                },
+                                gradient_enlightened: {
+                                    type: 'color',
+                                    label: 'Bottom color Enlightened',
+                                    hover_tip: 'Bottom color for Enlightened Progress bar if "Use Gradient" is active',
+                                    default: '#222222'
+                                },
+                                gradient_burned: {
+                                    type: 'color',
+                                    label: 'Bottom color Burned',
+                                    hover_tip: 'Bottom color for Burned Progress bar if "Use Gradient" is active',
+                                    default: '#222222'
+                                }
+                            }
                         }
-                    }}
+                    }
                 }
-                      }}
+            }
         }
         var dialog = new window.wkof.Settings(config);
         dialog.open();
