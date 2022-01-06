@@ -333,7 +333,7 @@
                                 unconditional_progressions: {
                                     type: 'number',
                                     label: 'Progressions shown unconditionally',
-                                    hover_tip: 'For example, 3 always shows current level radical, kanji, & vocab progressions',
+                                    hover_tip: '3 always shows current level radical, kanji, & vocab progress',
                                     min: 0,
                                     default: 3
                                 },
@@ -347,13 +347,13 @@
                                 hide_current_level: {
                                     type: 'checkbox',
                                     label: 'Hide current level items',
-                                    hover_tip: 'Check this to hide the list of radicals and kanji.',
+                                    hover_tip: 'Enable to hide the list of radicals and kanji.',
                                     default: false
                                 },
                                 require_learned: {
                                     type: 'checkbox',
                                     label: 'Require all items to be learned to hide',
-                                    hover_tip: 'Check this to require all items of a progression to have completed lessons.',
+                                    hover_tip: 'Enable to require all items of a progression to have lessons complete.',
                                     default: true
                                 },
                                 show_halfway_marker: {
@@ -405,7 +405,7 @@
                                 opacity_apprentice: {
                                     type: 'number',
                                     label: 'Apprentice Opacity',
-                                    hover_tip: 'Integer between 1 and 100 to determine opacity of highest Apprentice rank',
+                                    hover_tip: 'Integer between 1 and 100 to set opacity of highest Apprentice rank',
                                     min: 1,
                                     max: 100,
                                     step: '1',
@@ -414,7 +414,7 @@
                                 opacity_guru: {
                                     type: 'number',
                                     label: 'Guru Opacity',
-                                    hover_tip: 'Integer between 1 and 100 to determine opacity of highest Guru rank',
+                                    hover_tip: 'Integer between 1 and 100 to set opacity of highest Guru rank',
                                     min: 1,
                                     max: 100,
                                     step: '1',
@@ -423,7 +423,7 @@
                                 opacity_master: {
                                     type: 'number',
                                     label: 'Master Opacity',
-                                    hover_tip: 'Integer between 1 and 100 to determine opacity of Master rank',
+                                    hover_tip: 'Integer between 1 and 100 to set opacity of Master rank',
                                     min: 1,
                                     max: 100,
                                     step: '1',
@@ -432,7 +432,7 @@
                                 opacity_enlightened: {
                                     type: 'number',
                                     label: 'Enlightened Opacity',
-                                    hover_tip: 'Integer between 1 and 100 to determine opacity of Enlightened rank',
+                                    hover_tip: 'Integer between 1 and 100 to set opacity of Enlightened rank',
                                     min: 1,
                                     max: 100,
                                     step: '1',
@@ -441,7 +441,7 @@
                                 opacity_burned: {
                                     type: 'number',
                                     label: 'Burned Opacity',
-                                    hover_tip: 'Integer between 1 and 100 to determine opacity of Burned rank',
+                                    hover_tip: 'Integer between 1 and 100 to set opacity of Burned rank',
                                     min: 1,
                                     max: 100,
                                     step: '1',
@@ -450,7 +450,7 @@
                                 opacity_multiplier_apprentice: {
                                     type: 'number',
                                     label: 'Fading multiplier Apprentice',
-                                    hover_tip: 'Integer between 1 and 100 to determine speed of Apprentice rank color fade',
+                                    hover_tip: 'Integer between 1 and 100 to set speed of Apprentice rank color fade',
                                     min: 1,
                                     max: 100,
                                     step: '1',
@@ -459,7 +459,7 @@
                                 opacity_multiplier_guru: {
                                     type: 'number',
                                     label: 'Fading multiplier Guru',
-                                    hover_tip: 'Integer between 1 and 100 to determine speed of Guru rank color fade',
+                                    hover_tip: 'Integer between 1 and 100 to set speed of Guru rank color fade',
                                     min: 1,
                                     max: 100,
                                     step: '1',
@@ -473,37 +473,37 @@
                                 use_gradient: {
                                     type: 'checkbox',
                                     label: 'Use Gradient',
-                                    hover_tip: 'Progress bars will use a gradient, going from the main color at the top to the gradient color at the bottom',
+                                    hover_tip: 'If enabled, bars use a gradient: main on top, gradient color on bottom',
                                     default: false
                                 },
                                 gradient_apprentice: {
                                     type: 'color',
                                     label: 'Bottom color Apprentice',
-                                    hover_tip: 'Bottom color for your Apprentice Progression bar. "Use Gradient" must be active',
+                                    hover_tip: 'Bottom color for Apprentice Progress bar if "Use Gradient" is active',
                                     default: '#222222'
                                 },
                                 gradient_guru: {
                                     type: 'color',
                                     label: 'Bottom color Guru',
-                                    hover_tip: 'Color for your Guru Progression bar. "Use Gradient" must be active',
+                                    hover_tip: 'Bottom color for Guru Progress bar if "Use Gradient" is active',
                                     default: '#222222'
                                 },
                                 gradient_master: {
                                     type: 'color',
                                     label: 'Bottom color Master',
-                                    hover_tip: 'Color for your Master Progression bar. "Use Gradient" must be active',
+                                    hover_tip: 'Bottom color for Master Progress bar if "Use Gradient" is active',
                                     default: '#222222'
                                 },
                                 gradient_enlightened: {
                                     type: 'color',
                                     label: 'Bottom color Enlightened',
-                                    hover_tip: 'Color for your Enlightend Progression bar. "Use Gradient" must be active',
+                                    hover_tip: 'Bottom color for Enlightened Progress bar if "Use Gradient" is active',
                                     default: '#222222'
                                 },
                                 gradient_burned: {
                                     type: 'color',
                                     label: 'Bottom color Burned',
-                                    hover_tip: 'Color for your Burned Progression bar. "Use Gradient" must be active',
+                                    hover_tip: 'Bottom color for Burned Progress bar if "Use Gradient" is active',
                                     default: '#222222'
                                 }
                             }
