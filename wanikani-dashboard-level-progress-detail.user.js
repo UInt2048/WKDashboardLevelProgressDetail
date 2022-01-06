@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.1.3
+// @version      1.1.4
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
