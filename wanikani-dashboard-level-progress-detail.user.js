@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.1.4
+// @version      1.1.5
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -472,7 +472,7 @@
 
                                 use_gradient: {
                                     type: 'checkbox',
-                                    label: 'Use Gradient',
+                                    label: 'Use Gradient (3D effect)',
                                     hover_tip: 'If enabled, bars use a gradient: main on top, gradient color on bottom',
                                     default: false
                                 },
