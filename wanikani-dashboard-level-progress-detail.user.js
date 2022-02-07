@@ -1,13 +1,12 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.1.5
+// @version      1.1.6
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
 // @run-at       document-end
 // @grant        none
 // @namespace https://greasyfork.org/users/149329
-// @downloadURL none
 // ==/UserScript==
 /*eslint max-len: ["error", { "code": 120 }]*/
 
@@ -95,7 +94,8 @@
             var percentageTotal = usePassed ? progress.passed_total : desiredPlusTotal;
 
             if (!(percentageTotal * 100.0 / progress.max >= settings.progress_hidden_percentage &&
-                  total_learned >= learnedRequired) && progress.max !== 0) {
+                  total_learned >= learnedRequired) && progress.max !== 0 &&
+                (!settings.require_some_learned || total_learned > 0)) {
                 progresses.push(progress);
             }
             json.progresses = json.progresses.slice(1);
@@ -355,6 +355,12 @@
                                     label: 'Require all items to be learned to hide',
                                     hover_tip: 'Enable to require all items of a progression to have lessons complete.',
                                     default: true
+                                },
+                                require_some_learned: {
+                                    type: 'checkbox',
+                                    label: 'Require one item to be learned to show',
+                                    hover_tip: 'Enable to require some item of a progression to have lessons complete.',
+                                    default: false
                                 },
                                 show_halfway_marker: {
                                     type: 'checkbox',
