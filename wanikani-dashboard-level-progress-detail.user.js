@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.1.6
+// @version      1.2.0
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -62,6 +62,11 @@
         const apprenticeOpacityChange = 0.01 * settings.opacity_multiplier_apprentice;
         const markerThreshold = 0.97;
 
+        const normalKanji = !settings.highlight_level_threshold;
+        const thinHeader = settings.slim_view;
+        const zeroLeft = settings.zero_left;
+        const slimBar = settings.slim_view;
+
         function getColorCode(stage, alpha) {
             if (stage >= burnStage) return settings.colorcode_burned;
             else if (stage >= enlightenedStage) return settings.colorcode_enlightened;
@@ -70,7 +75,7 @@
             else if (stage >= apprenticeStage) return settings.colorcode_apprentice;
         }
 
-        function getGradient(stage, alpha) {
+        function getGradient(stage) {
             if(stage >= burnStage) return settings.gradient_burned;
             else if (stage >= enlightenedStage) return settings.gradient_enlightened;
             else if (stage >= masterStage) return settings.gradient_master;
@@ -108,8 +113,10 @@
             var user_specified_marker = 0.01 * settings.progress_hidden_percentage;
             var html =
                 '<div id="progress-' + progress.level + '-' + progress.type + '" class="vocab-progress">' +
-                '  <h3>Level ' + progress.level + ' ' + progress.type.charAt(0).toUpperCase() + progress.type.slice(1) +
+                '  <h3' + (thinHeader ? 'style="font-size:12px;line-height:0;letter-spacing:0;margin:9px 0;"' : '') +
+                '>Level ' + progress.level + ' ' + progress.type.charAt(0).toUpperCase() + progress.type.slice(1) +
                 ' Progression</h3><div class="chart" style="position:relative;">' +
+                // ===== USER-SPECIFIED % MARKER =====
                 (progress.max < 10 || Math.round(progress.max * user_specified_marker) == progress.max ? "" :
                  '<div class="threshold" style="width: ' +
                  Math.round(progress.max * user_specified_marker) * 100 / progress.max + '% !important;height:100% '+
@@ -120,18 +127,22 @@
                  'box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)">'+
                  '<div style="position:absolute;bottom:0;right:0;">' +
                  (user_specified_marker <= markerThreshold ? Math.round(progress.max * user_specified_marker) : "") +
-                 '&nbsp</div></div>') + // user-specified % marker
+                 '&nbsp</div></div>') +
+                // ===== CURRENT LEVEL KANJI PASSING MARKER =====
                 (progress.max < 10 || progress.type != "kanji" || progress.passed_total >= Math.ceil(progress.max * 0.9)
                  ? "" : '<div class="threshold" style="width: ' +
                  Math.ceil(progress.max * 0.9) * 100 / progress.max + '% !important;height:100% '+
-                 '!important;position:absolute !important;padding-right:0.5em !important;color:rgb(0, 220, 0, 1) '+
-                 '!important;font-family:Helvetica, Arial, sans-serif;text-align:right;'+
-                 'border-right:1px solid rgba(0,220,0,1);-webkit-box-sizing:border-box;-moz-box-sizing:border-box;'+
+                 '!important;position:absolute !important;padding-right:0.5em !important;color:'+
+                 (normalKanji ? '#a6a6a6' : 'rgb(0, 220, 0, 1)') +
+                 ' !important;font-family:Helvetica, Arial, sans-serif;'+
+                 'text-align:right;border-right:1px solid rgba(0,' + (normalKanji ? '0': '220') + ',0,1);'+
+                 '-webkit-box-sizing:border-box;-moz-box-sizing:border-box;'+
                  'box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;'+
-                 'box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)"><div style="font-weight:bold;'+
-                 'position:absolute;bottom:0;right:0;">' +
+                 'box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)"><div style="font-weight:'+
+                 (normalKanji ? 'normal;' : 'bold;') + 'position:absolute;bottom:0;right:0;">' +
                  Math.ceil(progress.max * 0.9) +
-                 '&nbsp</div></div>') + // current level kanji passing marker
+                 '&nbsp</div></div>') +
+                // ===== 50% MARKER =====
                 (progress.max < 2 || !settings.show_halfway_marker ? "" :
                  '<div class="threshold" style="width: ' + Math.ceil(progress.max * 0.5) * 100 / progress.max +
                  '% !important;height:100% !important;position:absolute !important;padding-right:0.5em '+
@@ -141,14 +152,15 @@
                  'box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)">'+
                  '<div style="position:absolute;bottom:0;right:0;">' +
                  Math.ceil(progress.max * 0.5) +
-                 '&nbsp</div></div>'); // 50% marker
+                 '&nbsp</div></div>');
 
             const beyondGuru = settings.distinguish_beyond_guru;
             let opacity = beyondGuru ? burnedOpacity : initialGuruOpacity;
             let gurued_plus_total = totalAtLeast(progress, guruStage);
 
             html += '    <div class="progress" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max +
-                ')" style="border-radius:' + settings.border_radius + 'px !important;">';
+                ')" style="border-radius:' + settings.border_radius + 'px !important;' +
+                (slimBar ? 'height:10px;' : '') + '">';
             for (let i = beyondGuru ? stageNames.length - 1 : guruStage; i >= apprenticeStage; i--) {
                 let name = (!beyondGuru && i == guruStage) ? "Guru+" : stageNames[i];
                 let total = (!beyondGuru && i == guruStage) ? gurued_plus_total : progress.srs_level_totals[i];
@@ -190,7 +202,7 @@
                 '        <span class="dark" style="display: none;"></span>' +
                 '      </div>';
 
-            var total = gurued_plus_total == progress.max ? 0 : gurued_plus_total;
+            var total = gurued_plus_total == progress.max || zeroLeft ? 0 : gurued_plus_total;
             html +=
                 '    </div>' + total + '<span class="pull-right total">' + progress.max + '</span>' +
                 '  </div>' +
@@ -373,6 +385,18 @@
                                     label: 'Distinguish beyond Guru',
                                     hover_tip: 'Show different colored bars for Guru, Master, Enlightened and Burned',
                                     default: false
+                                },
+                                slim_view: {
+                                    type: 'checkbox',
+                                    label: 'Slim view',
+                                    hover_tip: 'Make script view take up less space',
+                                    default: false
+                                },
+                                zero_left: {
+                                    type: 'checkbox',
+                                    label: 'Zero left',
+                                    hover_tip: 'Replace guru or above total with zero',
+                                    default: false
                                 }
                             }
                         },
@@ -470,6 +494,12 @@
                                     max: 100,
                                     step: '1',
                                     default: 70
+                                },
+                                highlight_level_threshold: {
+                                    type: 'checkbox',
+                                    label: 'Highlight level-up threshold',
+                                    hover_tip: 'Show level-up threshold in bold green font',
+                                    default: true
                                 }
                             }
                         },
