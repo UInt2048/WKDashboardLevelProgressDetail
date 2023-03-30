@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.2.1
+// @version      1.2.2
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -87,11 +87,11 @@
             return progress.srs_level_totals.slice(stage).reduce((a, b) => a + b, 0);
         }
 
-        let scoreIndex = window.$(".progress-component").children().get().findIndex(obj => obj.id === "scoreboard");
-        let score = window.$(".progress-component").children().slice(scoreIndex, scoreIndex + 1).detach();
-        window.$(".progress-component").children().slice(0, -2).remove();
-        if (settings.hide_current_level) { window.$(".progress-component").empty(); }
-        score.appendTo(".progress-component");
+        let scoreIndex = window.$(".dashboard-progress .progress-component").children().get().findIndex(obj => obj.id === "scoreboard");
+        let score = window.$(".dashboard-progress .progress-component").children().slice(scoreIndex, scoreIndex + 1).detach();
+        window.$(".dashboard-progress .progress-component").children().slice(0, -2).remove();
+        if (settings.hide_current_level) { window.$(".dashboard-progress .progress-component").empty(); }
+        score.appendTo(".dashboard-progress .progress-component");
 
         var progresses = [];
         while (json.progresses.length > settings.unconditional_progressions) {
@@ -213,7 +213,7 @@
 
             runningHTML += html;
         });
-        window.$('.progress-component').prepend(runningHTML);
+        window.$('.dashboard-progress .progress-component').prepend(runningHTML);
     }
 
     function prepareForRender() {
