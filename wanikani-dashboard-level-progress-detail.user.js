@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.2.3
+// @version      1.2.4
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -67,6 +67,8 @@
         const zeroLeft = settings.zero_left;
         const slimBar = settings.slim_view;
 
+        const keepProgressBar = settings.keep_progress_bar;
+
         function getColorCode(stage, alpha) {
             if (stage >= burnStage) return settings.colorcode_burned;
             else if (stage >= enlightenedStage) return settings.colorcode_enlightened;
@@ -89,7 +91,7 @@
 
         let scoreIndex = window.$(".dashboard-progress .progress-component").children().get().findIndex(obj => obj.id === "scoreboard");
         let score = window.$(".dashboard-progress .progress-component").children().slice(scoreIndex, scoreIndex + 1).detach();
-        window.$(".dashboard-progress .progress-component").children().slice(0, -2).remove();
+        window.$(".dashboard-progress .progress-component").children().slice(0, keepProgressBar ? -3 : -2).remove();
         if (settings.hide_current_level) { window.$(".dashboard-progress .progress-component").empty(); }
         score.appendTo(".dashboard-progress .progress-component");
 
@@ -231,9 +233,14 @@
                                  level_list.slice(-1)[0]).data.level;
                 window.wkof.ItemData.get_items('assignments').then(items => {
                     var collection = [];
-                    items.map(item => {
-                        return {...item, object: item.object === 'kana_vocabulary' ? 'vocabulary' : item.object};
-                    }).forEach(item => {
+                    if (window.wkof.settings.level_progress_detail.hide_kana_only) {
+                        items = items.filter(item => item.object !== 'kana_vocabulary');
+                    } else {
+                        items = items.map(item => {
+                            return {...item, object: item.object === 'kana_vocabulary' ? 'vocabulary' : item.object};
+                        });
+                    }
+                    items.forEach(item => {
                         var prog = collection.find(p => p.level == item.data.level && p.type == item.object);
                         if (prog == undefined) {
                             prog = {
@@ -253,9 +260,7 @@
                         }
                         prog.max++;
                     });
-                    collection = collection.filter(p => {
-                        return p.level <= top_level
-                    }).sort((a, b) => {
+                    collection = collection.filter(p => p.level <= top_level).sort((a, b) => {
                         var order = ['radical', 'kanji', 'vocabulary'];
                         return a.level - b.level + (order.indexOf(a.type) - order.indexOf(b.type)) / 10;
                     });
@@ -367,6 +372,12 @@
                                     hover_tip: 'Enable to hide the list of radicals and kanji.',
                                     default: false
                                 },
+                                hide_kana_only: {
+                                    type: 'checkbox',
+                                    label: 'Hide kana-only vocab',
+                                    hover_tip: 'Enable to exclude kana-only vocab from vocabulary.',
+                                    default: false
+                                },
                                 require_learned: {
                                     type: 'checkbox',
                                     label: 'Require all items to be learned to hide',
@@ -401,6 +412,12 @@
                                     type: 'checkbox',
                                     label: 'Zero left',
                                     hover_tip: 'Replace guru or above total with zero',
+                                    default: false
+                                },
+                                keep_progress_bar: {
+                                    type: 'checkbox',
+                                    label: 'Keep unmodified progress bar',
+                                    hover_tip: 'Keep unmodified progress bar for script compatibility',
                                     default: false
                                 }
                             }
