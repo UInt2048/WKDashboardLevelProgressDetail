@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.2.2
+// @version      1.2.3
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -231,7 +231,9 @@
                                  level_list.slice(-1)[0]).data.level;
                 window.wkof.ItemData.get_items('assignments').then(items => {
                     var collection = [];
-                    items.forEach(item => {
+                    items.map(item => {
+                        return {...item, object: item.object === 'kana_vocabulary' ? 'vocabulary' : item.object};
+                    }).forEach(item => {
                         var prog = collection.find(p => p.level == item.data.level && p.type == item.object);
                         if (prog == undefined) {
                             prog = {
