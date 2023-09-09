@@ -21,7 +21,7 @@
     }
     window.wkof.include('ItemData, Apiv2, Menu, Settings');
 
-    var locked_data_url = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEX////"+
+    let locked_data_url = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEX////"+
         "p6emlmyooAAAAAnRSTlMAgJsrThgAAAA1SURBVDjLY3huea54DpQ4wIBgnyuewDAHSdKAAUnhuQIGJIVzHjCMmjJqyqgpo6aMmkKkKQC"+
         "2XQWeSEU1BQAAAABJRU5ErkJggg==')";
 
@@ -69,7 +69,7 @@
 
         const keepProgressBar = settings.keep_progress_bar;
 
-        function getColorCode(stage, alpha) {
+        function getColorCode(stage) {
             if (stage >= burnStage) return settings.colorcode_burned;
             else if (stage >= enlightenedStage) return settings.colorcode_enlightened;
             else if (stage >= masterStage) return settings.colorcode_master;
@@ -91,21 +91,22 @@
 
         let progressComponent = window.$(".level-progress-dashboard > .dashboard-panel");
         let scoreIndex = progressComponent.children().get().findIndex(obj => obj.id === "scoreboard");
-        let score = progressComponent.children().slice(scoreIndex, scoreIndex + 1).detach();
+        let score = null;
+        if (scoreIndex != -1) { score = progressComponent.children().slice(scoreIndex, scoreIndex + 1).detach(); }
         progressComponent.children().slice(0, keepProgressBar ? -3 : -2).remove();
         if (settings.hide_current_level) {
             progressComponent.children().slice(-2).remove();
             progressComponent.append("<div/><div/>");
         }
-        score.appendTo(progressComponent);
+        if (scoreIndex != -1) { score.appendTo(progressComponent); }
 
-        var progresses = [];
+        let progresses = [];
         while (json.progresses.length > settings.unconditional_progressions) {
-            var progress = json.progresses[0];
-            var total_learned = totalAtLeast(progress, apprenticeStage);
-            var desiredPlusTotal = totalAtLeast(progress, desiredLevel);
-            var learnedRequired = settings.require_learned ? progress.max : 0;
-            var percentageTotal = usePassed ? progress.passed_total : desiredPlusTotal;
+            let progress = json.progresses[0];
+            let total_learned = totalAtLeast(progress, apprenticeStage);
+            let desiredPlusTotal = totalAtLeast(progress, desiredLevel);
+            let learnedRequired = settings.require_learned ? progress.max : 0;
+            let percentageTotal = usePassed ? progress.passed_total : desiredPlusTotal;
 
             if (!(percentageTotal * 100.0 / progress.max >= settings.progress_hidden_percentage &&
                   total_learned >= learnedRequired) && progress.max !== 0 &&
@@ -117,10 +118,10 @@
 
         json.progresses = progresses.concat(json.progresses);
 
-        var runningHTML = "";
+        let runningHTML = "";
         json.progresses.forEach(function(progress) {
-            var user_specified_marker = 0.01 * settings.progress_hidden_percentage;
-            var html =
+            let user_specified_marker = 0.01 * settings.progress_hidden_percentage;
+            let html =
                 '<div id="progress-' + progress.level + '-' + progress.type + '" class="vocab-progress">' +
                 '  <h3' + (thinHeader ? 'style="font-size:12px;line-height:0;letter-spacing:0;margin:9px 0;"' : '') +
                 '>Level ' + progress.level + ' ' + progress.type.charAt(0).toUpperCase() + progress.type.slice(1) +
@@ -194,13 +195,13 @@
                 else opacity *= apprenticeOpacityChange;
             }
 
-            var unlockedCount = 0;
+            let unlockedCount = 0;
             progress.srs_level_totals.forEach(function(srs_level_total) {
                 unlockedCount += srs_level_total;
             });
-            var lockedCount = progress.max - unlockedCount;
-            var notStartedWidth = progress.srs_level_totals[0] * 100.0 / progress.max;
-            var lockedWidth = lockedCount * 100.0 / progress.max;
+            let lockedCount = progress.max - unlockedCount;
+            let notStartedWidth = progress.srs_level_totals[0] * 100.0 / progress.max;
+            let lockedWidth = lockedCount * 100.0 / progress.max;
 
             html +=
                 '      <div class="bar bar-supplemental" title="Locked (' + lockedCount + '/' + progress.max +
@@ -211,7 +212,7 @@
                 '        <span class="dark" style="display: none;"></span>' +
                 '      </div>';
 
-            var total = gurued_plus_total == progress.max || zeroLeft ? 0 : gurued_plus_total;
+            let total = gurued_plus_total == progress.max || zeroLeft ? 0 : gurued_plus_total;
             html +=
                 '    </div>' + total + '<span class="pull-right total">' + progress.max + '</span>' +
                 '  </div>' +
@@ -223,20 +224,20 @@
     }
 
     function prepareForRender() {
-        var cached_json = localStorage.getItem('level-progress-cache');
+        let cached_json = localStorage.getItem('level-progress-cache');
         if (cached_json) render(JSON.parse(cached_json));
 
         window.wkof.ready('ItemData, Apiv2').then(() => {
             window.wkof.Apiv2.get_endpoint('level_progressions').then(levels => {
-                var level_list = [];
-                for (var id in levels) {
+                let level_list = [];
+                for (let id in levels) {
                     level_list.push(levels[id]);
                 }
-                var top_level = (level_list.find(l => l.data.abandoned_at == null &&
+                let top_level = (level_list.find(l => l.data.abandoned_at == null &&
                                                  l.data.passed_at == null && l.data.unlocked_at != null) ||
                                  level_list.slice(-1)[0]).data.level;
                 window.wkof.ItemData.get_items('assignments').then(items => {
-                    var collection = [];
+                    let collection = [];
                     if (window.wkof.settings.level_progress_detail.hide_kana_only) {
                         items = items.filter(item => item.object !== 'kana_vocabulary');
                     } else {
@@ -245,7 +246,7 @@
                         });
                     }
                     items.forEach(item => {
-                        var prog = collection.find(p => p.level == item.data.level && p.type == item.object);
+                        let prog = collection.find(p => p.level == item.data.level && p.type == item.object);
                         if (prog == undefined) {
                             prog = {
                                 level: item.data.level,
@@ -265,10 +266,10 @@
                         prog.max++;
                     });
                     collection = collection.filter(p => p.level <= top_level).sort((a, b) => {
-                        var order = ['radical', 'kanji', 'vocabulary'];
+                        let order = ['radical', 'kanji', 'vocabulary'];
                         return a.level - b.level + (order.indexOf(a.type) - order.indexOf(b.type)) / 10;
                     });
-                    var json = {
+                    let json = {
                         progresses: collection
                     };
                     localStorage.setItem('level-progress-cache', JSON.stringify(json));
@@ -282,7 +283,7 @@
 
     // Load settings and set defaults
     function load_settings() {
-        var defaults = {
+        let defaults = {
             progress_hidden: '2',
             progress_hidden_percentage: 90,
             unconditional_progressions: 0,
@@ -315,7 +316,7 @@
 
     // Installs the options button in the menu
     function install_menu() {
-        var config = {
+        let config = {
             name: 'level_progress_detail_settings',
             submenu: 'Settings',
             title: 'Dashboard Level Progress Detail',
@@ -326,7 +327,7 @@
 
     // Create the options
     function open_settings() {
-        var config = {
+        let config = {
             script_id: 'level_progress_detail',
             title: 'Dashboard Level Progress Detail',
             content: {
@@ -574,7 +575,7 @@
                 }
             }
         }
-        var dialog = new window.wkof.Settings(config);
+        let dialog = new window.wkof.Settings(config);
         dialog.open();
     }
 })();
