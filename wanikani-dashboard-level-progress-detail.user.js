@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.3.2
+// @version      1.3.3
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -166,7 +166,7 @@
             let user_specified_marker = 0.01 * settings.progress_hidden_percentage;
             let html =
                 '<div id="progress-' + progress.level + '-' + progress.type + '" class="vocab-progress"><h3 ' +
-                (thinHeader ? 'style="font-size:14px;font-weight:300;line-height:0;letter-spacing:0px;margin:9px 0;' +
+                (thinHeader ? 'style="font-size:14px;font-weight:300;line-height:0.2;letter-spacing:0px;margin:9px 0;' +
                     'font-family:\'Open Sans\', \'Helvetica Neue\', Helvetica, Arial, sans-serif;"' :
                     'style="font-size:18px;font-weight:300;line-height:1.4;letter-spacing:-1px;margin:9px 0;' +
                     'font-family:\'Open Sans\', \'Helvetica Neue\', Helvetica, Arial, sans-serif;"') +
