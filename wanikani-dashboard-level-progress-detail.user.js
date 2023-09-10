@@ -128,28 +128,23 @@
             return progress.srs_level_totals.slice(stage).reduce((a, b) => a + b, 0);
         }
 
-        let progressComponent = window.$(".level-progress-dashboard > .dashboard-panel");
-        let scoreIndex = progressComponent.children().get().findIndex(obj => obj.id === "scoreboard");
-        let score = null;
-        if (scoreIndex != -1) {
-            score = progressComponent.children().slice(scoreIndex, scoreIndex + 1).detach();
-        }
+        const progressComponent = window.$(".level-progress-dashboard > .dashboard-panel");
+        const scoreIndex = progressComponent.children().get().findIndex(obj => obj.id === "scoreboard");
+        const score = scoreIndex == -1 ? null : progressComponent.children().slice(scoreIndex, scoreIndex + 1).detach();
         progressComponent.children().slice(0, keepProgressBar ? -3 : -2).remove();
         if (settings.hide_current_level) {
             progressComponent.children().slice(-2).remove();
             progressComponent.append("<div/><div/>");
         }
-        if (scoreIndex != -1) {
-            score.appendTo(progressComponent);
-        }
+        if (scoreIndex != -1) score.appendTo(progressComponent);
 
         let progresses = [];
         while (json.progresses.length > settings.unconditional_progressions) {
-            let progress = json.progresses[0];
-            let total_learned = totalAtLeast(progress, apprenticeStage);
-            let desiredPlusTotal = totalAtLeast(progress, desiredLevel);
-            let learnedRequired = settings.require_learned ? progress.max : 0;
-            let percentageTotal = usePassed ? progress.passed_total : desiredPlusTotal;
+            const progress = json.progresses[0];
+            const total_learned = totalAtLeast(progress, apprenticeStage);
+            const desiredPlusTotal = totalAtLeast(progress, desiredLevel);
+            const learnedRequired = settings.require_learned ? progress.max : 0;
+            const percentageTotal = usePassed ? progress.passed_total : desiredPlusTotal;
 
             if (!(percentageTotal * 100.0 / progress.max >= settings.progress_hidden_percentage &&
                     total_learned >= learnedRequired) && progress.max !== 0 &&
@@ -163,65 +158,56 @@
 
         let runningHTML = "";
         json.progresses.forEach(function(progress) {
-            let user_specified_marker = 0.01 * settings.progress_hidden_percentage;
+            const user_specified_marker = 0.01 * settings.progress_hidden_percentage;
+            const fontFamily = '\'Open Sans\', \'Helvetica Neue\', Helvetica, Arial, sans-serif;'
+            const commonMarkerStyle = 'height:100% !important;position:absolute !important;padding-right:0.5em ' +
+                    '!important;font-family:' + fontFamily + 'text-align:right;-webkit-box-sizing:border-box;' +
+                    '-moz-box-sizing:border-box;box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;' +
+                    '-moz-box-shadow:1px 0 0 #eee;box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5);' +
+                    'margin-top:2px';
             let html =
                 '<div id="progress-' + progress.level + '-' + progress.type + '" class="vocab-progress"><h3 ' +
                 (thinHeader ? 'style="font-size:14px;font-weight:300;line-height:0.2;letter-spacing:0px;margin:9px 0;' +
-                    'font-family:\'Open Sans\', \'Helvetica Neue\', Helvetica, Arial, sans-serif;"' :
+                    'font-family:' + fontFamily + '"' :
                     'style="font-size:18px;font-weight:300;line-height:1.4;letter-spacing:-1px;margin:9px 0;' +
-                    'font-family:\'Open Sans\', \'Helvetica Neue\', Helvetica, Arial, sans-serif;"') +
+                    'font-family:' + fontFamily + '"') +
                 '>Level ' + progress.level + ' ' + progress.type.charAt(0).toUpperCase() + progress.type.slice(1) +
                 ' Progress</h3><div class="chart" style="position:relative;">' +
                 // ===== USER-SPECIFIED % MARKER =====
                 (progress.max < 10 || Math.round(progress.max * user_specified_marker) == progress.max ? "" :
-                    '<div class="threshold" style="width: ' +
-                    Math.round(progress.max * user_specified_marker) * 100 / progress.max + '% !important;height:100%' +
-                    ' !important;position:absolute !important;padding-right:0.5em !important;color:#a6a6a6 ' +
-                    '!important;font-family:Helvetica, Arial, sans-serif;text-align:right;' +
-                    'border-right:1px solid rgba(0,0,0,0.1);-webkit-box-sizing:border-box;-moz-box-sizing:border-box;' +
-                    'box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;' +
-                    'box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)">' +
-                    '<div style="position:absolute;bottom:0;right:0;">' +
+                    '<div class="threshold" style="' + commonMarkerStyle + 'width: ' +
+                    Math.round(progress.max * user_specified_marker) * 100 / progress.max + '% color:#a6a6a6 ' +
+                    '!important;border-right:1px solid rgba(0,0,0,0.1);">' +
                     (user_specified_marker <= markerThreshold ? Math.round(progress.max * user_specified_marker) : "") +
                     '&nbsp;</div></div>') +
                 // ===== CURRENT LEVEL KANJI PASSING MARKER =====
                 (progress.max < 10 || progress.type != "kanji" || progress.passed_total >=
-                    Math.ceil(progress.max * 0.9) ? "" : '<div class="threshold" style="width: ' +
-                    Math.ceil(progress.max * 0.9) * 100 / progress.max + '% !important;height:100% ' +
-                    '!important;position:absolute !important;padding-right:0.5em !important;color:' +
-                    (levelThreshold ? 'rgb(0, 220, 0, 1)' : '#a6a6a6') +
-                    ' !important;font-family:Helvetica, Arial, sans-serif;' +
-                    'text-align:right;border-right:1px solid rgba(0,' + (levelThreshold ? '220' : '0') + ',0,1);' +
-                    '-webkit-box-sizing:border-box;-moz-box-sizing:border-box;' +
-                    'box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;' +
-                    'box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)"><div style="font-weight:' +
+                    Math.ceil(progress.max * 0.9) ? "" : '<div class="threshold" style="' + commonMarkerStyle + 'width: ' +
+                    Math.ceil(progress.max * 0.9) * 100 / progress.max + '% !important;color:' +
+                    (levelThreshold ? 'rgb(0, 220, 0, 1)' : '#a6a6a6') + ' !important;border-right:1px solid rgba(0,' +
+                    (levelThreshold ? '220' : '0') + ',0,1);"><div style="font-weight:' +
                     (levelThreshold ? 'bold;' : 'normal;') + 'position:absolute;bottom:0;right:0;">' +
                     Math.ceil(progress.max * 0.9) + '&nbsp;</div></div>') +
                 // ===== 50% MARKER =====
                 (progress.max < 2 || settings.hide_halfway_marker ? "" :
-                    '<div class="threshold" style="width: ' + Math.ceil(progress.max * 0.5) * 100 / progress.max +
-                    '% !important;height:100% !important;position:absolute !important;padding-right:0.5em ' +
-                    '!important;color:#a6a6a6 !important;font-family:Helvetica, Arial, sans-serif;text-align:right;' +
-                    'border-right:1px solid rgba(0,0,0,0.1);-webkit-box-sizing:border-box;-moz-box-sizing:border-box;' +
-                    'box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;-moz-box-shadow:1px 0 0 #eee;' +
-                    'box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5)">' +
+                    '<div class="threshold" style="' + commonMarkerStyle + 'width: ' + Math.ceil(progress.max * 0.5) * 100 / progress.max +
+                    '% !important;color:#a6a6a6 !important;border-right:1px solid rgba(0,0,0,0.1);">' +
                     '<div style="position:absolute;bottom:0;right:0;">' +
-                    Math.ceil(progress.max * 0.5) + '&nbsp;</div></div>');
+                    Math.ceil(progress.max * 0.5) + '&nbsp;</div></div>') +
+                // ==== UNSTARTED BAR ====
+                '<div class="progress" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max +
+                     ')" style="border-radius:' + settings.border_radius + 'px !important;' +
+                     (slimBar ? 'height:10px;' : '') + '">';
 
             const beyondGuru = settings.distinguish_beyond_guru;
+            const gurued_plus_total = totalAtLeast(progress, guruStage);
             let opacity = beyondGuru ? burnedOpacity : initialGuruOpacity;
-            let gurued_plus_total = totalAtLeast(progress, guruStage);
-
-            // ==== UNSTARTED BAR ====
-            html += '<div class="progress" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max +
-                ')" style="border-radius:' + settings.border_radius + 'px !important;' +
-                (slimBar ? 'height:10px;' : '') + '">';
             for (let i = beyondGuru ? stageNames.length - 1 : guruStage; i >= apprenticeStage; i--) {
-                let name = (!beyondGuru && i == guruStage) ? "Guru+" : stageNames[i];
-                let total = (!beyondGuru && i == guruStage) ? gurued_plus_total : progress.srs_level_totals[i];
-                let percentage = total * 100.0 / progress.max;
-                let gradient = "linear-gradient(to bottom, " + getColorCode(i) + ", " +
-                    (settings.use_gradient ? getGradient(i) : getColorCode(i)) + ")";
+                const name = (!beyondGuru && i == guruStage) ? "Guru+" : stageNames[i];
+                const total = (!beyondGuru && i == guruStage) ? gurued_plus_total : progress.srs_level_totals[i];
+                const percentage = total * 100.0 / progress.max;
+                const gradient = "linear-gradient(to bottom, " + getColorCode(i) + ", " +
+                      (settings.use_gradient ? getGradient(i) : getColorCode(i)) + ")";
 
                 // ==== SRS STAGE BAR ====
                 html +=
@@ -245,9 +231,9 @@
             progress.srs_level_totals.forEach(function(srs_level_total) {
                 unlockedCount += srs_level_total;
             });
-            let lockedCount = progress.max - unlockedCount;
-            let notStartedWidth = progress.srs_level_totals[0] * 100.0 / progress.max;
-            let lockedWidth = lockedCount * 100.0 / progress.max;
+            const lockedCount = progress.max - unlockedCount;
+            const notStartedWidth = progress.srs_level_totals[0] * 100.0 / progress.max;
+            const lockedWidth = lockedCount * 100.0 / progress.max;
 
             // ==== LOCKED BAR ====
             html +=
@@ -258,9 +244,11 @@
                 settings.border_radius + 'px !important;"> <span class="dark" style="display: none;"></span>' +
                 '</div>';
 
-            let total = gurued_plus_total == progress.max || zeroLeft ? 0 : gurued_plus_total;
+            const total = gurued_plus_total == progress.max || zeroLeft ? 0 : gurued_plus_total;
+            // ==== TOTAL ====
             html +=
-                '</div>' + total + '<span class="pull-right total">' + progress.max + '</span>' +
+                '</div><span class="total" style="position:relative !important; bottom:-2px">' + total + '</span>' +
+                '<span class="pull-right total" style="margin-top:2px">' + progress.max + '</span>' +
                 '</div>' +
                 '</div>';
 
@@ -270,7 +258,7 @@
     }
 
     function prepareForRender() {
-        let cached_json = localStorage.getItem('level-progress-cache');
+        const cached_json = localStorage.getItem('level-progress-cache');
         if (cached_json) render(JSON.parse(cached_json));
 
         window.wkof.ready('ItemData, Apiv2').then(() => {
@@ -279,7 +267,7 @@
                 for (let id in levels) {
                     level_list.push(levels[id]);
                 }
-                let top_level = (level_list.find(l => l.data.abandoned_at == null &&
+                const top_level = (level_list.find(l => l.data.abandoned_at == null &&
                         l.data.passed_at == null && l.data.unlocked_at != null) ||
                     level_list.slice(-1)[0]).data.level;
                 window.wkof.ItemData.get_items('assignments').then(items => {
@@ -318,7 +306,7 @@
                         let order = ['radical', 'kanji', 'vocabulary'];
                         return a.level - b.level + (order.indexOf(a.type) - order.indexOf(b.type)) / 10;
                     });
-                    let json = {
+                    const json = {
                         progresses: collection
                     };
                     localStorage.setItem('level-progress-cache', JSON.stringify(json));
@@ -639,7 +627,7 @@
                 }
             }
         }
-        let dialog = new window.wkof.Settings(config);
+        const dialog = new window.wkof.Settings(config);
         dialog.open();
     }
 })();
