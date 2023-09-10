@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.3.4
+// @version      1.3.5
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -161,10 +161,10 @@
             const user_specified_marker = 0.01 * settings.progress_hidden_percentage;
             const fontFamily = '\'Open Sans\', \'Helvetica Neue\', Helvetica, Arial, sans-serif;'
             const commonMarkerStyle = 'height:100% !important;position:absolute !important;padding-right:0.5em ' +
-                    '!important;font-family:' + fontFamily + 'text-align:right;-webkit-box-sizing:border-box;' +
-                    '-moz-box-sizing:border-box;box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;' +
-                    '-moz-box-shadow:1px 0 0 #eee;box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5);' +
-                    'margin-top:2px';
+                '!important;font-family:' + fontFamily + 'text-align:right;-webkit-box-sizing:border-box;' +
+                '-moz-box-sizing:border-box;box-sizing:border-box;-webkit-box-shadow:1px 0 0 #eee;' +
+                '-moz-box-shadow:1px 0 0 #eee;box-shadow:1px 0 0 #eee;text-shadow:0 1px 0 rgba(255,255,255,0.5);' +
+                'margin-top:2px;';
             let html =
                 '<div id="progress-' + progress.level + '-' + progress.type + '" class="vocab-progress"><h3 ' +
                 (thinHeader ? 'style="font-size:14px;font-weight:300;line-height:0.2;letter-spacing:0px;margin:9px 0;' +
@@ -176,28 +176,29 @@
                 // ===== USER-SPECIFIED % MARKER =====
                 (progress.max < 10 || Math.round(progress.max * user_specified_marker) == progress.max ? "" :
                     '<div class="threshold" style="' + commonMarkerStyle + 'width: ' +
-                    Math.round(progress.max * user_specified_marker) * 100 / progress.max + '% color:#a6a6a6 ' +
-                    '!important;border-right:1px solid rgba(0,0,0,0.1);">' +
+                    Math.round(progress.max * user_specified_marker) * 100 / progress.max + '% !important; ' +
+                    'color:#a6a6a6 !important;border-right:1px solid rgba(0,0,0,0.1);">' +
+                    '<div style="position:absolute;bottom:0;right:0;">' +
                     (user_specified_marker <= markerThreshold ? Math.round(progress.max * user_specified_marker) : "") +
                     '&nbsp;</div></div>') +
                 // ===== CURRENT LEVEL KANJI PASSING MARKER =====
                 (progress.max < 10 || progress.type != "kanji" || progress.passed_total >=
-                    Math.ceil(progress.max * 0.9) ? "" : '<div class="threshold" style="' + commonMarkerStyle + 'width: ' +
-                    Math.ceil(progress.max * 0.9) * 100 / progress.max + '% !important;color:' +
+                    Math.ceil(progress.max * 0.9) ? "" : '<div class="threshold" style="' + commonMarkerStyle +
+                    'width: ' + Math.ceil(progress.max * 0.9) * 100 / progress.max + '% !important;color:' +
                     (levelThreshold ? 'rgb(0, 220, 0, 1)' : '#a6a6a6') + ' !important;border-right:1px solid rgba(0,' +
                     (levelThreshold ? '220' : '0') + ',0,1);"><div style="font-weight:' +
                     (levelThreshold ? 'bold;' : 'normal;') + 'position:absolute;bottom:0;right:0;">' +
                     Math.ceil(progress.max * 0.9) + '&nbsp;</div></div>') +
                 // ===== 50% MARKER =====
                 (progress.max < 2 || settings.hide_halfway_marker ? "" :
-                    '<div class="threshold" style="' + commonMarkerStyle + 'width: ' + Math.ceil(progress.max * 0.5) * 100 / progress.max +
-                    '% !important;color:#a6a6a6 !important;border-right:1px solid rgba(0,0,0,0.1);">' +
-                    '<div style="position:absolute;bottom:0;right:0;">' +
+                    '<div class="threshold" style="' + commonMarkerStyle + 'width: ' +
+                    Math.ceil(progress.max * 0.5) * 100 / progress.max + '% !important;color:#a6a6a6 !important;' +
+                    'border-right:1px solid rgba(0,0,0,0.1);"><div style="position:absolute;bottom:0;right:0;">' +
                     Math.ceil(progress.max * 0.5) + '&nbsp;</div></div>') +
                 // ==== UNSTARTED BAR ====
                 '<div class="progress" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max +
-                     ')" style="border-radius:' + settings.border_radius + 'px !important;' +
-                     (slimBar ? 'height:10px;' : '') + '">';
+                ')" style="border-radius:' + settings.border_radius + 'px !important;' +
+                (slimBar ? 'height:10px;' : '') + '">';
 
             const beyondGuru = settings.distinguish_beyond_guru;
             const gurued_plus_total = totalAtLeast(progress, guruStage);
@@ -207,7 +208,7 @@
                 const total = (!beyondGuru && i == guruStage) ? gurued_plus_total : progress.srs_level_totals[i];
                 const percentage = total * 100.0 / progress.max;
                 const gradient = "linear-gradient(to bottom, " + getColorCode(i) + ", " +
-                      (settings.use_gradient ? getGradient(i) : getColorCode(i)) + ")";
+                    (settings.use_gradient ? getGradient(i) : getColorCode(i)) + ")";
 
                 // ==== SRS STAGE BAR ====
                 html +=
