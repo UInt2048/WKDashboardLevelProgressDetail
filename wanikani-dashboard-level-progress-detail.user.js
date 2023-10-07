@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.4.0
+// @version      1.4.1
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -131,12 +131,14 @@
         const progressComponent = window.$(".dashboard-panel--level-progress > .dashboard-panel__content > .level-progress-dashboard");
         const scoreIndex = progressComponent.children().get().findIndex(obj => obj.id === "scoreboard");
         const score = scoreIndex == -1 ? null : progressComponent.children().slice(scoreIndex, scoreIndex + 1).detach();
-        progressComponent.children().slice(0, keepProgressBar ? -3 : -2).remove();
+        const index = keepProgressBar ? -3 : -2;
+        progressComponent.children().slice(0, index).remove();
         if (settings.hide_current_level) {
             progressComponent.children().slice(-2).remove();
             progressComponent.append("<div/><div/>");
         }
         if (scoreIndex != -1) score.appendTo(progressComponent);
+        progressComponent.children().eq(index).css("margin-top", "18px"); // Add spacing to element after last progression
 
         let progresses = [];
         while (json.progresses.length > settings.unconditional_progressions) {
