@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.4.1
+// @version      1.5.0
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
@@ -128,7 +128,7 @@
             return progress.srs_level_totals.slice(stage).reduce((a, b) => a + b, 0);
         }
 
-        const progressComponent = window.$(".dashboard-panel--level-progress > .dashboard-panel__content > .level-progress-dashboard");
+        const progressComponent = window.$(".wk-panel--level-progress > .wk-panel__content > .level-progress-dashboard");
         const scoreIndex = progressComponent.children().get().findIndex(obj => obj.id === "scoreboard");
         const score = scoreIndex == -1 ? null : progressComponent.children().slice(scoreIndex, scoreIndex + 1).detach();
         const index = keepProgressBar ? -3 : -2;
