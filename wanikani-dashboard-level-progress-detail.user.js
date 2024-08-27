@@ -1,16 +1,16 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.5.0
+// @version      1.6.0
 // @description  Show detailed progress bars.
 // @author       UInt2048
-// @include      /^https://(www|preview).wanikani.com/(dashboard)?$/
+// @match        https://www.wanikani.com/*
 // @run-at       document-end
 // @grant        none
 // @namespace https://greasyfork.org/users/149329
 // ==/UserScript==
 /*eslint max-len: ["error", { "code": 120 }]*/
 
-(function() {
+(async function() {
     'use strict';
 
     if (!window.wkof) {
@@ -19,7 +19,6 @@
         window.location.href = 'https://community.wanikani.com/t/instructions-installing-wanikani-open-framework/28549';
         return;
     }
-    window.wkof.include('ItemData, Apiv2, Menu, Settings');
 
     const locked_data_url = "url('data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAGQAAABkAQMAAABKLAcXAAAABlBMVEX////" +
         "p6emlmyooAAAAAnRSTlMAgJsrThgAAAA1SURBVDjLY3huea54DpQ4wIBgnyuewDAHSdKAAUnhuQIGJIVzHjCMmjJqyqgpo6aMmkKkKQC" +
@@ -59,6 +58,31 @@
         gradient_enlightened: '#222222',
         gradient_burned: '#222222'
     };
+
+
+    window.wkof.include('ItemData, Apiv2, Menu, Settings, Jquery');
+    await window.wkof.ready('Menu,Settings')
+    await load_settings();
+
+    if (shouldLoadOnPage(document.location.pathname)) {
+        setup();
+    }
+
+    document.documentElement.addEventListener('turbo:load', (evt) => {
+        const path = new URL(evt.detail.url).pathname;
+        if (shouldLoadOnPage(path)) {
+            setTimeout(() => setup(), 0);
+        }
+    })
+
+    function setup() {
+        install_menu();
+        prepareForRender();
+    }
+
+    function shouldLoadOnPage(path) {
+        return path === '/dashboard' || path === '/';
+    }
 
     function render(json) {
         const burnStage = 9;
@@ -128,7 +152,7 @@
             return progress.srs_level_totals.slice(stage).reduce((a, b) => a + b, 0);
         }
 
-        const progressComponent = window.$(".wk-panel--level-progress > .wk-panel__content > .level-progress-dashboard");
+        const progressComponent = $(".wk-panel--level-progress > .wk-panel__content > .level-progress-dashboard");
         const scoreIndex = progressComponent.children().get().findIndex(obj => obj.id === "scoreboard");
         const score = scoreIndex == -1 ? null : progressComponent.children().slice(scoreIndex, scoreIndex + 1).detach();
         const index = keepProgressBar ? -3 : -2;
@@ -198,7 +222,7 @@
                     'border-right:1px solid rgba(0,0,0,0.1);"><div style="position:absolute;bottom:0;right:0;">' +
                     Math.ceil(progress.max * 0.5) + '&nbsp;</div></div>') +
                 // ==== UNSTARTED BAR ====
-                '<div class="progress" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max +
+                '<div class="level-progress-bar" title="Unstarted (' + progress.srs_level_totals[0] + '/' + progress.max +
                      ')" style="border-radius:' + settings.border_radius + 'px !important;' +
                      (slimBar ? 'height:10px;' : '') + '">';
 
@@ -251,7 +275,7 @@
             // ==== TOTAL ====
             html +=
                 '</div><span class="total" style="position:relative !important; bottom:-2px">' + total + '</span>' +
-                '<span class="pull-right total" style="margin-top:2px">' + progress.max + '</span>' +
+                '<span class="pull-right total" style="margin-top:2px; float:right;">' + progress.max + '</span>' +
                 '</div>' +
                 '</div>';
 
@@ -320,8 +344,6 @@
             }); // level progressions
         }); // Item Data, APIv2
     }
-
-    window.wkof.ready('Menu,Settings').then(load_settings).then(install_menu).then(prepareForRender);
 
     // Load settings and set defaults
     function load_settings() {
