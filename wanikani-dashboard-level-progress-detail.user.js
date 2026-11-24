@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.6.3
+// @version      1.7.0
 // @description  Show detailed progress bars.
 // @author       UInt2048
 // @match        https://www.wanikani.com/*
@@ -63,7 +63,7 @@
         gradient_burned: '#222222'
     };
 
-    function render(json) {
+    function render(json, frame) {
         const burnStage = 9;
         const enlightenedStage = 8;
         const masterStage = 7;
@@ -131,17 +131,19 @@
             return progress.srs_level_totals.slice(stage).reduce((a, b) => a + b, 0);
         }
 
-        const progressComponent = window.$(".wk-panel--level-progress > .wk-panel__content > .level-progress-dashboard");
-        const scoreIndex = progressComponent.children().get().findIndex(obj => obj.id === "scoreboard");
-        const score = scoreIndex == -1 ? null : progressComponent.children().slice(scoreIndex, scoreIndex + 1).detach();
-        const index = keepProgressBar ? -3 : -2;
-        progressComponent.children().slice(0, index).remove();
+        const progressWidget = window.$(".level-progress-widget > .level-progress-widget__content", frame);
+        const progressNav = window.$(".level-progress-widget__header > .level-progress-widget__navigation", progressWidget);
+        progressNav.remove();
+        const progressComponent = window.$(".level-progress-widget__overview > .level-progress-widget__content-wrapper", progressWidget);
+        const progressBar = window.$(".level-progress-widget__level-progress", progressComponent);
+        progressComponent.children().remove();
         if (settings.hide_current_level) {
             progressComponent.children().slice(-2).remove();
             progressComponent.append("<div/><div/>");
         }
-        if (scoreIndex != -1) score.appendTo(progressComponent);
-        progressComponent.children().eq(index).css("margin-top", "18px"); // Add space to element after last progression
+        progressComponent.css("margin-top", "22px");
+        progressBar.css("margin-top", "18px"); // Add space to element after last progression
+        progressBar.css("display", keepProgressBar ? "" : "none");
 
         let progresses = [];
         while (json.progresses.length > settings.unconditional_progressions) {
@@ -203,7 +205,7 @@
                 // ==== UNSTARTED BAR ====
                 '<div class="level-progress-bar" title="Unstarted (' + progress.srs_level_totals[0] + '/' +
                      progress.max + ')" style="border-radius:' + settings.border_radius + 'px !important;' +
-                     (slimBar ? 'height:10px;' : '') + '">';
+                     (slimBar ? 'height:10px;' : 'height:20px;') + 'background-color: #dbdbdb;">';
 
             const beyondGuru = settings.distinguish_beyond_guru;
             const gurued_plus_total = totalAtLeast(progress, guruStage);
@@ -261,67 +263,91 @@
             runningHTML += html;
         });
         progressComponent.prepend(runningHTML);
+        progressComponent.append(progressBar);
     }
 
-    function prepareForRender() {
-        const cached_json = localStorage.getItem('level-progress-cache');
-        if (cached_json) render(JSON.parse(cached_json));
+    async function prepareForRender() {
+        await window.wkof.ready('ItemData, Apiv2');
+        const levels = await window.wkof.Apiv2.get_endpoint('level_progressions');
 
-        window.wkof.ready('ItemData, Apiv2').then(() => {
-            window.wkof.Apiv2.get_endpoint('level_progressions').then(levels => {
-                let level_list = [];
-                for (let id in levels) {
-                    level_list.push(levels[id]);
+        let level_list = [];
+        for (let id in levels) {
+            level_list.push(levels[id]);
+        }
+        const top_level = (
+            level_list.find(l =>
+                l.data.abandoned_at == null &&
+                l.data.passed_at == null &&
+                l.data.unlocked_at != null
+            ) || level_list.slice(-1)[0]
+        ).data.level;
+
+        let items = await window.wkof.ItemData.get_items('assignments');
+
+        let collection = [];
+        if (window.wkof.settings.level_progress_detail.hide_kana_only) {
+            items = items.filter(item => item.object !== 'kana_vocabulary');
+        } else {
+            items = items.map(item => Object.assign({}, item, {object: item.object === 'kana_vocabulary' ? 'vocabulary' : item.object}));
+        }
+        items.forEach(item => {
+            let prog = collection.find(p => p.level == item.data.level && p.type == item.object);
+            if (prog == undefined) {
+                prog = {
+                    level: item.data.level,
+                    type: item.object,
+                    srs_level_totals: Array(10).fill(0),
+                    passed_total: 0,
+                    max: 0
+                };
+                collection.push(prog);
+            }
+            if (item.assignments != undefined && item.assignments.unlocked_at != null) {
+                prog.srs_level_totals[item.assignments.srs_stage]++;
+                if (item.assignments.passed_at != null) {
+                    prog.passed_total++;
                 }
-                const top_level = (level_list.find(l => l.data.abandoned_at == null &&
-                        l.data.passed_at == null && l.data.unlocked_at != null) ||
-                    level_list.slice(-1)[0]).data.level;
-                window.wkof.ItemData.get_items('assignments').then(items => {
-                    let collection = [];
-                    if (window.wkof.settings.level_progress_detail.hide_kana_only) {
-                        items = items.filter(item => item.object !== 'kana_vocabulary');
-                    } else {
-                        items = items.map(item => Object.assign({}, item, {object: item.object === 'kana_vocabulary' ? 'vocabulary' : item.object}));
-                    }
-                    items.forEach(item => {
-                        let prog = collection.find(p => p.level == item.data.level && p.type == item.object);
-                        if (prog == undefined) {
-                            prog = {
-                                level: item.data.level,
-                                type: item.object,
-                                srs_level_totals: Array(10).fill(0),
-                                passed_total: 0,
-                                max: 0
-                            };
-                            collection.push(prog);
-                        }
-                        if (item.assignments != undefined && item.assignments.unlocked_at != null) {
-                            prog.srs_level_totals[item.assignments.srs_stage]++;
-                            if (item.assignments.passed_at != null) {
-                                prog.passed_total++;
-                            }
-                        }
-                        prog.max++;
-                    });
-                    collection = collection.filter(p => p.level <= top_level).sort((a, b) => {
-                        let order = ['radical', 'kanji', 'vocabulary'];
-                        return a.level - b.level + (order.indexOf(a.type) - order.indexOf(b.type)) / 10;
-                    });
-                    const json = {
-                        progresses: collection
-                    };
-                    localStorage.setItem('level-progress-cache', JSON.stringify(json));
-                    if (cached_json != json) {
-                        render(json);
-                    }
-                }); // assignments
-            }); // level progressions
-        }); // Item Data, APIv2
+            }
+            prog.max++;
+        });
+        collection = collection.filter(p => p.level <= top_level).sort((a, b) => {
+            let order = ['radical', 'kanji', 'vocabulary'];
+            return a.level - b.level + (order.indexOf(a.type) - order.indexOf(b.type)) / 10;
+        });
+        const json = JSON.stringify({
+            progresses: collection
+        });
+        localStorage.setItem('level-progress-cache', json);
+        return json;
     }
 
-    wkof.on_pageload(/^(\/dashboard)?(\/)?$/, () => {
-        window.wkof.ready('Menu,Settings').then(load_settings).then(install_menu).then(prepareForRender);
-    });
+    function on_frameload(fresh_json, frame) {
+        const cached_json = localStorage.getItem('level-progress-cache');
+        if (cached_json) render(JSON.parse(cached_json), frame);
+        fresh_json.then((fresh_json) => {
+            if (fresh_json != cached_json) render(JSON.parse(fresh_json), frame);
+        });
+    }
+
+    async function on_pageload() {
+        await window.wkof.ready('Menu,Settings');
+        await load_settings();
+
+        const fresh_json = prepareForRender();
+
+        const progressTurboFrame = window.$(".level-progress-widget").parent();
+        progressTurboFrame.on("turbo:before-frame-render", (e) => {
+            on_frameload(fresh_json, e.detail.newFrame);
+        });
+        function rerender() {
+            progressTurboFrame.each((_, frame) => on_frameload(fresh_json, frame));
+        }
+        rerender();
+
+        install_menu(rerender);
+    }
+
+    wkof.on_pageload(/^(\/dashboard)?(\/)?$/, on_pageload);
 
     // Load settings and set defaults
     function load_settings() {
@@ -329,18 +355,18 @@
     }
 
     // Installs the options button in the menu
-    function install_menu() {
+    function install_menu(rerender) {
         const config = {
             name: 'level_progress_detail_settings',
             submenu: 'Settings',
             title: 'Dashboard Level Progress Detail',
-            on_click: open_settings
+            on_click: open_settings.bind(null, rerender)
         };
         window.wkof.Menu.insert_script_link(config);
     }
 
     // Create the options
-    function open_settings() {
+    function open_settings(rerender) {
         const config = {
             script_id: 'level_progress_detail',
             title: 'Dashboard Level Progress Detail',
@@ -367,7 +393,7 @@
                                         7: 'Burnt right now',
                                         8: 'Has been burnt at any point'
                                     },
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 progress_hidden_percentage: {
                                     type: 'number',
@@ -377,7 +403,7 @@
                                     max: 100,
                                     step: 1,
                                     default: defaults.progress_hidden_percentage,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 unconditional_progressions: {
                                     type: 'number',
@@ -385,7 +411,7 @@
                                     hover_tip: '3 always shows current level radical, kanji, & vocab progress',
                                     min: 0,
                                     default: defaults.unconditional_progressions,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 border_radius: {
                                     type: 'number',
@@ -393,70 +419,70 @@
                                     hover_tip: 'Choose zero for no roundedness, and 10 for maximum roundedness.',
                                     min: 0,
                                     default: defaults.border_radius,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 hide_current_level: {
                                     type: 'checkbox',
                                     label: 'Hide current level items',
                                     hover_tip: 'Enable to hide the list of radicals and kanji.',
                                     default: defaults.hide_current_level,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 hide_kana_only: {
                                     type: 'checkbox',
                                     label: 'Hide kana-only vocab',
                                     hover_tip: 'Enable to exclude kana-only vocab from vocabulary.',
                                     default: defaults.hide_kana_only,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 hide_halfway_marker: {
                                     type: 'checkbox',
                                     label: 'Hide halfway marker',
                                     hover_tip: 'Enable to remove 50% marker.',
                                     default: defaults.hide_halfway_marker,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 require_learned: {
                                     type: 'checkbox',
                                     label: 'Require all items to be learned to hide',
                                     hover_tip: 'Enable to require all items of a progression to have lessons complete.',
                                     default: defaults.require_learned,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 require_some_learned: {
                                     type: 'checkbox',
                                     label: 'Require one item to be learned to show',
                                     hover_tip: 'Enable to require some item of a progression to have lessons complete.',
                                     default: defaults.require_some_learned,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 distinguish_beyond_guru: {
                                     type: 'checkbox',
                                     label: 'Distinguish beyond Guru',
                                     hover_tip: 'Show different colored bars for Guru, Master, Enlightened and Burned',
                                     default: defaults.distinguish_beyond_guru,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 slim_view: {
                                     type: 'checkbox',
                                     label: 'Slim view',
                                     hover_tip: 'Make script view take up less space',
                                     default: defaults.slim_view,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 zero_left: {
                                     type: 'checkbox',
                                     label: 'Zero left',
                                     hover_tip: 'Replace guru or above total with zero',
                                     default: defaults.zero_left,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 keep_progress_bar: {
                                     type: 'checkbox',
                                     label: 'Keep unmodified progress bar',
                                     hover_tip: 'Keep unmodified progress bar for script compatibility',
                                     default: defaults.keep_progress_bar,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 }
                             }
                         },
@@ -469,35 +495,35 @@
                                     label: 'Color Apprentice',
                                     hover_tip: 'Color for your Apprentice Progression bar',
                                     default: defaults.colorcode_apprentice,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 colorcode_guru: {
                                     type: 'color',
                                     label: 'Color Guru',
                                     hover_tip: 'Color for your Guru Progression bar',
                                     default: defaults.colorcode_guru,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 colorcode_master: {
                                     type: 'color',
                                     label: 'Color Master',
                                     hover_tip: 'Color for your Master Progression bar',
                                     default: defaults.colorcode_master,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 colorcode_enlightened: {
                                     type: 'color',
                                     label: 'Color Enlightened',
                                     hover_tip: 'Color for your Enlightend Progression Bar',
                                     default: defaults.colorcode_enlightened,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 colorcode_burned: {
                                     type: 'color',
                                     label: 'Color Burned',
                                     hover_tip: 'Color for your Burned Progression Bar',
                                     default: defaults.colorcode_burned,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 opacity_apprentice: {
                                     type: 'number',
@@ -507,7 +533,7 @@
                                     max: 100,
                                     step: 1,
                                     default: defaults.opacity_apprentice,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 opacity_guru: {
                                     type: 'number',
@@ -517,7 +543,7 @@
                                     max: 100,
                                     step: 1,
                                     default: defaults.opacity_guru,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 opacity_master: {
                                     type: 'number',
@@ -527,7 +553,7 @@
                                     max: 100,
                                     step: '1',
                                     default: defaults.opacity_master,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 opacity_enlightened: {
                                     type: 'number',
@@ -537,7 +563,7 @@
                                     max: 100,
                                     step: 1,
                                     default: defaults.opacity_enlightened,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 opacity_burned: {
                                     type: 'number',
@@ -547,7 +573,7 @@
                                     max: 100,
                                     step: 1,
                                     default: defaults.opacity_burned,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 opacity_multiplier_apprentice: {
                                     type: 'number',
@@ -557,7 +583,7 @@
                                     max: 100,
                                     step: 1,
                                     default: defaults.opacity_multiplier_apprentice,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 opacity_multiplier_guru: {
                                     type: 'number',
@@ -567,14 +593,14 @@
                                     max: 100,
                                     step: 1,
                                     default: defaults.opacity_multiplier_guru,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 highlight_level_threshold: {
                                     type: 'checkbox',
                                     label: 'Highlight level-up threshold',
                                     hover_tip: 'Show level-up threshold in bold green font',
                                     default: defaults.highlight_level_threshold,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 }
                             }
                         },
@@ -587,42 +613,42 @@
                                     label: 'Use Gradient (3D effect)',
                                     hover_tip: 'If enabled, bars use a gradient: main on top, gradient color on bottom',
                                     default: defaults.use_gradient,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 gradient_apprentice: {
                                     type: 'color',
                                     label: 'Bottom color Apprentice',
                                     hover_tip: 'Bottom color for Apprentice Progress bar if "Use Gradient" is active',
                                     default: defaults.gradient_apprentice,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 gradient_guru: {
                                     type: 'color',
                                     label: 'Bottom color Guru',
                                     hover_tip: 'Bottom color for Guru Progress bar if "Use Gradient" is active',
                                     default: defaults.gradient_guru,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 gradient_master: {
                                     type: 'color',
                                     label: 'Bottom color Master',
                                     hover_tip: 'Bottom color for Master Progress bar if "Use Gradient" is active',
                                     default: defaults.gradient_master,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 gradient_enlightened: {
                                     type: 'color',
                                     label: 'Bottom color Enlightened',
                                     hover_tip: 'Bottom color for Enlightened Progress bar if "Use Gradient" is active',
                                     default: defaults.gradient_enlightened,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 },
                                 gradient_burned: {
                                     type: 'color',
                                     label: 'Bottom color Burned',
                                     hover_tip: 'Bottom color for Burned Progress bar if "Use Gradient" is active',
                                     default: defaults.gradient_burned,
-                                    on_change: prepareForRender
+                                    on_change: rerender
                                 }
                             }
                         }
@@ -634,3 +660,4 @@
         dialog.open();
     }
 })();
+
