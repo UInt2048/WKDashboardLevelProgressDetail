@@ -1,14 +1,10 @@
 // ==UserScript==
 // @name         WaniKani Dashboard Level Progress Detail
-// @version      1.6.2
+// @version      1.6.3
 // @description  Show detailed progress bars.
 // @author       UInt2048
-// @match        https://preview.wanikani.com/
-// @match        https://preview.wanikani.com/dashboard
-// @match        https://preview.wanikani.com/dashboard/
-// @match        https://www.wanikani.com/
-// @match        https://www.wanikani.com/dashboard
-// @match        https://www.wanikani.com/dashboard/
+// @match        https://www.wanikani.com/*
+// @match        https://preview.wanikani.com/*
 // @run-at       document-end
 // @grant        none
 // @namespace    https://greasyfork.org/users/149329
@@ -323,7 +319,9 @@
         }); // Item Data, APIv2
     }
 
-    window.wkof.ready('Menu,Settings').then(load_settings).then(install_menu).then(prepareForRender);
+    wkof.on_pageload(/^(\/dashboard)?(\/)?$/, () => {
+        window.wkof.ready('Menu,Settings').then(load_settings).then(install_menu).then(prepareForRender);
+    });
 
     // Load settings and set defaults
     function load_settings() {
